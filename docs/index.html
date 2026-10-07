@@ -31,7 +31,7 @@
 <body>
 <header>
   <h1>M5Stack Tab5 電子辞書　書き込みページ</h1>
-  <p>書籍『M5Stack Tab5 で作る、自分だけの電子辞書』のファームウェア（版 v0）</p>
+  <p>書籍『M5Stack Tab5 で作る、自分だけの電子辞書』のファームウェア（版 v0.1）</p>
 </header>
 <main>
   <section class="warn">
@@ -63,7 +63,7 @@
   <section>
     <h2>和英・漢字・国語辞典を足す（microSD カード）</h2>
     <ol>
-      <li><a href="tab5-pocket-dictionary-v0-sd-dictionaries.zip">辞書セット（ZIP、約 26 MB）</a>をダウンロードして展開します。</li>
+      <li><a href="tab5-pocket-dictionary-v0.1-sd-dictionaries.zip">辞書セット（ZIP、約 26 MB）</a>をダウンロードして展開します。</li>
       <li>microSD カード（32 GB 以下、FAT32）のいちばん上に、中の <code>dict</code> フォルダをそのままコピーします。</li>
       <li>カードを Tab5 に挿して電源を入れ直すと、辞書が 5 冊になります（起動に約 9 秒かかります）。</li>
     </ol>
@@ -75,8 +75,9 @@
       <tr><th>症状</th><th>対処</th></tr>
       <tr><td>一覧に何も出ない</td><td>ケーブルをデータ通信対応のものに替える。Tab5 の電源が入っているか確認する。</td></tr>
       <tr><td>接続に失敗する</td><td>ほかのアプリ（Arduino IDE など）がポートを使っていないか確認し、Tab5 をつなぎ直す。</td></tr>
+      <tr><td>一覧には出るのに「Failed to initialize」と出る</td><td>ケーブルを別のものに替えるか、パソコンの別の差し込み口（USB ハブ経由も含む）につなぎ直して、もう一度ボタンから書き込む。一覧に名前が出るケーブルでも、書き込みのやりとりができないことがある。メッセージにある BOOT ボタンは Tab5 にはない。</td></tr>
       <tr><td>途中で止まった</td><td>もう一度ボタンから書き込み直す。何度でもやり直せます。</td></tr>
-      <tr><td>ボタンで書き込めない</td><td><a href="tab5-pocket-dictionary-v0-firmware.bin">1 ファイル版のファームウェア</a>をダウンロードし、Espressif 公式の書き込みツール（<a href="https://espressif.github.io/esptool-js/">esptool-js</a>）でアドレス 0x0 に書き込む。</td></tr>
+      <tr><td>ボタンで書き込めない</td><td><a href="tab5-pocket-dictionary-v0.1-firmware.bin">1 ファイル版のファームウェア</a>をダウンロードし、Espressif 公式の書き込みツール（<a href="https://espressif.github.io/esptool-js/">esptool-js</a>）でアドレス 0x0 に書き込む。</td></tr>
     </table>
     <p class="note">書き込みには ESPHome プロジェクトの <a href="https://github.com/esphome/esp-web-tools">ESP Web Tools</a>（Apache-2.0）を使っています。ソースコードと手順は <a href="https://github.com/bravelink-inc/tab5-pocket-dictionary">GitHub</a> にあります。</p>
   </section>

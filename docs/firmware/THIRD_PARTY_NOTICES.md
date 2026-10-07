@@ -7,7 +7,7 @@
 | EJDict-hand (英和) | https://github.com/kujirahand/EJDict | CC0 1.0 (Public Domain) | Included in `third_party/ejdict/`. Converted to `data/ejdict.pdc` at build time |
 | JMdict (和英・英和) | https://www.edrdg.org/jmdict/j_jmdict.html | CC BY-SA 4.0 | Not included. Download `JMdict_e.gz` and convert with `tools/convert_jmdict.py`. This product uses the JMdict dictionary files in accordance with the licence provisions of the Electronic Dictionary Research and Development Group |
 | KANJIDIC2 (漢字) | https://www.edrdg.org/wiki/index.php/KANJIDIC_Project | CC BY-SA 4.0 | Not included. Convert with `tools/convert_kanjidic.py`. Same EDRDG licence statement as above |
-| Japanese WordNet (国語) | https://bond-lab.github.io/wnja/ | Japanese WordNet License (BSD-like); Princeton WordNet License for English data | Not included. Convert with `tools/convert_wnjpn.py` |
+| Japanese WordNet (国語) | https://bond-lab.github.io/wnja/ | Japanese WordNet License (BSD-like); Princeton WordNet License for English data | Not included in the repository. Convert with `tools/convert_wnjpn.py`. The licence text is in `third_party/wnja/license.txt` and is copied into the SD dictionary ZIP by `scripts/make_release.sh` |
 
 ## Quiz data embedded in the firmware
 
@@ -27,6 +27,7 @@
 | Font | License |
 | --- | --- |
 | IPAGothic (IPA), as converted by M5GFX into `lgfxJapanGothic` (u8g2 bitmap format, 4,425 glyphs) | IPA Font License Agreement v1.0 — full text in `third_party/ipafont/IPA_Font_License_Agreement_v1.0.txt` |
+| Noto Sans JP (Copyright 2014-2021 Adobe, https://github.com/notofonts/noto-cjk), converted by `tools/make_font.py` into u8g2 bitmap fonts (about 13,400 glyphs, renamed), packed as `third_party/notosansjp/jp_fonts.pfn` and flashed to the `font` partition | SIL Open Font License 1.1 — full text in `third_party/notosansjp/OFL.txt`, also shipped next to the firmware on the flashing page |
 
 The firmware image contains bitmap fonts derived from IPAGothic. M5GFX distributes them under the
 IPA Font License with a different name (`lgfx_font_japan_gothic_*`), and this project redistributes

@@ -19,7 +19,7 @@ git clone --branch v1.0 https://github.com/bravelink-inc/tab5-pocket-dictionary.
 | `firmware/` | 電子辞書のファームウェア（ESP-IDF v5.5、M5Unified、M5GFX） |
 | `examples/ch04_hello_tab5/` | 書籍の最初に書き込む、画面に文字を出すだけのサンプル |
 | `tools/` | 辞書データの変換、SD カードへの転送、画面の撮影などの道具（Python） |
-| `third_party/` | 内蔵の英和辞書、テスト用の単語リストと漢字の学年表、フォント関係のライセンス |
+| `third_party/` | 内蔵の英和辞書、テスト用の単語リストと漢字の学年表、フォントと日本語 WordNet のライセンス |
 | `case/` | 3D プリンターで作る台（クレードル）の生成プログラムと STL |
 | `web/`、`scripts/make_release.sh` | ブラウザから書き込むページと、配布用の一式を作るスクリプト |
 

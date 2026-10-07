@@ -31,3 +31,14 @@ if(EXISTS "${PD_DICT_BIN}")
 else()
     message(WARNING "No dictionary image at ${PD_DICT_BIN}; only SD-card dictionaries will be available")
 endif()
+
+# ---------------------------------------------------------------------------
+# Japanese font image (flashed to the "font" partition by `idf.py flash`).
+# Made by tools/make_font.py and kept in the repository, because building it needs extra tools.
+# Without it the firmware falls back to the built-in font (some rare kanji show as boxes).
+# ---------------------------------------------------------------------------
+set(PD_FONT_BIN "${PD_ROOT}/third_party/notosansjp/jp_fonts.pfn")
+if(EXISTS "${PD_FONT_BIN}")
+    esptool_py_flash_to_partition(flash "font" "${PD_FONT_BIN}")
+    message(STATUS "font partition image: ${PD_FONT_BIN}")
+endif()

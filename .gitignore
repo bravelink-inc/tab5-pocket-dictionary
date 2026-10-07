@@ -13,7 +13,6 @@ data/src/
 data/tsv/
 data/sd/
 tools/.venv/
-firmware/dependencies.lock
 __pycache__/
 *.pyc
 examples/*/build/

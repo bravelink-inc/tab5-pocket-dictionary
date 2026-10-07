@@ -19,13 +19,15 @@ echo "== build firmware"
 B="$ROOT/firmware/build"
 cp "$B/bootloader/bootloader.bin" "$B/partition_table/partition-table.bin" "$B/pocketdictionary.bin" "$OUT/web/firmware/"
 cp "$ROOT/data/ejdict.pdc" "$OUT/web/firmware/ejdict.pdc"
+cp "$ROOT/third_party/notosansjp/jp_fonts.pfn" "$OUT/web/firmware/jp_fonts.pfn"
+cp "$ROOT/third_party/notosansjp/OFL.txt" "$OUT/web/firmware/OFL.txt"
 cp "$ROOT/THIRD_PARTY_NOTICES.md" "$ROOT/third_party/ipafont/IPA_Font_License_Agreement_v1.0.txt" "$OUT/web/firmware/"
 
 echo "== single image (write at 0x0)"
 python -m esptool --chip esp32p4 merge_bin -o "$OUT/tab5-pocket-dictionary-$VER-firmware.bin" \
   --flash_mode dio --flash_size 16MB \
   0x2000 "$B/bootloader/bootloader.bin" 0x10000 "$B/partition_table/partition-table.bin" \
-  0x20000 "$B/pocketdictionary.bin" 0x400000 "$ROOT/data/ejdict.pdc" >/dev/null
+  0x20000 "$B/pocketdictionary.bin" 0x400000 "$ROOT/data/ejdict.pdc" 0xA80000 "$ROOT/third_party/notosansjp/jp_fonts.pfn" >/dev/null
 cp "$OUT/$FW_BIN" "$OUT/web/$FW_BIN"
 
 echo "== ESP Web Tools manifest"
@@ -42,7 +44,8 @@ cat > "$OUT/web/manifest.json" <<JSON
         { "path": "firmware/bootloader.bin", "offset": 8192 },
         { "path": "firmware/partition-table.bin", "offset": 65536 },
         { "path": "firmware/pocketdictionary.bin", "offset": 131072 },
-        { "path": "firmware/ejdict.pdc", "offset": 4194304 }
+        { "path": "firmware/ejdict.pdc", "offset": 4194304 },
+        { "path": "firmware/jp_fonts.pfn", "offset": 11010048 }
       ]
     }
   ]
@@ -62,6 +65,8 @@ mkdir -p "$ZIPDIR/dict"
 cp "$ROOT"/data/sd/dict/*.pdc "$ZIPDIR/dict/"
 cp "$ROOT/THIRD_PARTY_NOTICES.md" "$ZIPDIR/"
 cp "$ROOT/third_party/ipafont/IPA_Font_License_Agreement_v1.0.txt" "$ZIPDIR/"
+cp "$ROOT/third_party/notosansjp/OFL.txt" "$ZIPDIR/"
+cp "$ROOT/third_party/wnja/license.txt" "$ZIPDIR/Japanese_WordNet_License.txt"
 cat > "$ZIPDIR/はじめにお読みください.txt" <<TXT
 Tab5 電子辞書 追加辞書セット（$VER）
 
@@ -74,11 +79,15 @@ Tab5 に挿して電源を入れ直すと、次の 4 冊が使えるようにな
   30_kanjidic2.pdc       KANJIDIC2 漢字辞典
   40_wnjpn_kokugo.pdc    日本語 WordNet 国語辞典
 
-ライセンス: JMdict / KANJIDIC2 は EDRDG の CC BY-SA 4.0、日本語 WordNet は Japanese WordNet License です。
-ファームウェアに入っている日本語フォントは IPA ゴシック由来で、IPA フォントライセンス v1.0 です（同梱の条文を参照）。
+ライセンス: JMdict / KANJIDIC2 は EDRDG の CC BY-SA 4.0、日本語 WordNet は Japanese WordNet License です（同梱の条文を参照）。
+ファームウェアに入っている日本語フォントは IPA ゴシック由来（IPA フォントライセンス v1.0）と
+Noto Sans JP 由来（SIL Open Font License 1.1）です（同梱の条文を参照）。
 詳しくは THIRD_PARTY_NOTICES.md を見てください。
 TXT
-( cd "$ZIPDIR" && rm -f "../tab5-pocket-dictionary-$VER-sd-dictionaries.zip" && zip -qr "../tab5-pocket-dictionary-$VER-sd-dictionaries.zip" . )
+# Python's zipfile marks non-ASCII names as UTF-8 (Info-ZIP zip on macOS does not), so
+# 「はじめにお読みください.txt」 keeps its name when Windows Explorer extracts the ZIP.
+rm -f "$OUT/$SD_ZIP"
+python -c 'import shutil, sys; shutil.make_archive(sys.argv[1], "zip", sys.argv[2])' "$OUT/${SD_ZIP%.zip}" "$ZIPDIR"
 rm -rf "$ZIPDIR"
 cp "$OUT/$SD_ZIP" "$OUT/web/$SD_ZIP"
 SD_MB=$(( $(stat -f%z "$OUT/tab5-pocket-dictionary-$VER-sd-dictionaries.zip" 2>/dev/null || stat -c%s "$OUT/tab5-pocket-dictionary-$VER-sd-dictionaries.zip") / 1048576 ))
@@ -88,4 +97,5 @@ sed -e "s|__VERSION__|$VER|g" -e "s|__SD_ZIP_URL__|$SD_ZIP|g" -e "s|__SD_ZIP_MB_
 
 echo "== checksums"
 ( cd "$OUT" && shasum -a 256 *.bin *.zip > SHA256SUMS.txt && cat SHA256SUMS.txt )
+cp "$OUT/SHA256SUMS.txt" "$OUT/web/"   # next to the downloads on the page
 du -sh "$OUT"/* "$OUT/web"
