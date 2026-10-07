@@ -1,2 +1,2 @@
-7ad806b43ebed82cf79980c732c95f7e976518be22dadd3d2b4c001f097b5b0c  tab5-pocket-dictionary-v0-firmware.bin
-87c7037f2de91ba1e696e6b7034a3b026b76691b5a03cee0a2d9e7682df882dc  tab5-pocket-dictionary-v0-sd-dictionaries.zip
+cd1fb3ec05c2acd1d2a710ed64afd2c359f52edbd94f9dc353576e47d12657a5  tab5-pocket-dictionary-v0.1-firmware.bin
+6aeba6c09f53a169b70360d0cbf4c98be54a10157899e835bee80de0809f6551  tab5-pocket-dictionary-v0.1-sd-dictionaries.zip

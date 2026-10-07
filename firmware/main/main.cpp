@@ -15,6 +15,7 @@
 #include "debug_console.hpp"
 #include "ui.hpp"
 #include "wordbook.hpp"
+#include "font_store.hpp"
 
 static const char* TAG = "main";
 
@@ -27,6 +28,7 @@ extern "C" void app_main(void)
     mcfg.internal_imu = false;
     M5.begin(mcfg);
     settings_init();
+    font_store::load();
     M5.Display.setRotation(settings_get_rotation(cfg::DISPLAY_ROTATION));
     M5.Display.setBrightness(cfg::DISPLAY_BRIGHTNESS);
     ESP_LOGI(TAG, "board=%d display=%dx%d", (int)M5.getBoard(), M5.Display.width(), M5.Display.height());

@@ -15,6 +15,7 @@
 #include "debug_console.hpp"
 #include "dict_store.hpp"
 #include "wordbook.hpp"
+#include "font_store.hpp"
 #include "esp_random.h"
 
 static const char* TAG = "ui";
@@ -54,6 +55,19 @@ const lgfx::IFont* F_SMALL = &fonts::lgfxJapanGothic_20;
 const lgfx::IFont* F_LIST  = &fonts::lgfxJapanGothic_28;
 const lgfx::IFont* F_HEAD  = &fonts::lgfxJapanGothic_40;
 const lgfx::IFont* F_BODY  = &fonts::lgfxJapanGothic_28;
+const lgfx::IFont* F_BIG   = &fonts::lgfxJapanGothic_40;   // quiz prompts and results
+
+// Switch to the flash fonts if font_store loaded them (see font_store.hpp).
+void applyFonts()
+{
+    F_QUERY = font_store::get(40);
+    F_TITLE = font_store::get(24);
+    F_SMALL = font_store::get(20);
+    F_LIST  = font_store::get(28);
+    F_HEAD  = font_store::get(40);
+    F_BODY  = font_store::get(28);
+    F_BIG   = font_store::get(40);
+}
 
 struct Line {
     std::string text;
@@ -920,13 +934,13 @@ void drawQuizQuestion()
     const bool kanji = Z.kind == QuizKind::Kanji;
     if (kanji) {
         g.setTextDatum(textdatum_t::top_left);
-        g.setFont(&fonts::lgfxJapanGothic_40); g.setTextColor(C_HEAD);
+        g.setFont(F_BIG); g.setTextColor(C_HEAD);
         g.setTextSize(3);
         g.drawString(Z.q.word.c_str(), x, 104);
         g.setTextSize(1);
     } else {
         std::string prompt = Z.jaToEn ? firstSense(Z.q.def) : Z.q.word;
-        drawTextBlock(Z.jaToEn ? F_HEAD : &fonts::lgfxJapanGothic_40, C_HEAD, prompt, x, 120, w, 2);
+        drawTextBlock(Z.jaToEn ? F_HEAD : F_BIG, C_HEAD, prompt, x, 120, w, 2);
     }
     g.setFont(F_SMALL); g.setTextColor(C_HINT2);
     g.setTextDatum(textdatum_t::top_left);
@@ -962,7 +976,7 @@ void drawPowerOff()
     auto& g = screenCv;
     drawQuizChrome("電源オフ", "Enter 電源を切る    Esc 戻る");
     g.setTextDatum(textdatum_t::top_left);
-    g.setFont(&fonts::lgfxJapanGothic_40); g.setTextColor(C_HEAD);
+    g.setFont(F_BIG); g.setTextColor(C_HEAD);
     g.drawString("電源を切りますか？", 80, 200);
     drawTextBlock(F_BODY, C_HINT2, "Enter で電源が切れます。次に使うときは本体の電源ボタンを押してください。", 80, 300, SCREEN_W - 160);
 }
@@ -973,7 +987,7 @@ void doPowerOff()
     ESP_LOGI(TAG, "power off");
     screenCv.fillScreen(C_HEADER);
     screenCv.setTextDatum(textdatum_t::middle_center);
-    screenCv.setFont(&fonts::lgfxJapanGothic_40); screenCv.setTextColor(C_HEADER_T);
+    screenCv.setFont(F_BIG); screenCv.setTextColor(C_HEADER_T);
     screenCv.drawString("電源を切っています...", SCREEN_W / 2, SCREEN_H / 2);
     present();
     vTaskDelay(pdMS_TO_TICKS(600));
@@ -993,7 +1007,7 @@ void drawQuizResult()
     drawQuizChrome("結果", "Enter もう一度    Esc 辞書に戻る");
     const int x = 80;
     g.setTextDatum(textdatum_t::top_left);
-    g.setFont(&fonts::lgfxJapanGothic_40); g.setTextColor(C_HEAD);
+    g.setFont(F_BIG); g.setTextColor(C_HEAD);
     std::string score = std::to_string(Z.index) + " 問中 " + std::to_string(Z.score) + " 問正解";
     g.drawString(score.c_str(), x, 140);
     int y = 230;
@@ -1271,6 +1285,7 @@ void ui::showSplash(const char* message)
 // [book:8-run]
 void ui::run(std::vector<std::unique_ptr<Dictionary>>& dicts)
 {
+    applyFonts();
     S.dicts = &dicts;
     S.active = ALL_DICTS;
     loadFreqWords();

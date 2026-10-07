@@ -1,5 +1,5 @@
 dependencies:
   idf: ">=5.4"
-  m5stack/m5unified: "^0.2.21"
-  m5stack/m5gfx: "^0.2.28"
+  m5stack/m5unified: "==0.2.23"
+  m5stack/m5gfx: "==0.2.30"
   espressif/usb_host_hid: "^1.2.1"

@@ -32,5 +32,7 @@ constexpr const char* SD_DICT_DIR    = "/sdcard/dict";
 
 // ---- Built-in dictionary partition ------------------------------------------
 constexpr const char* DICT_PARTITION_LABEL = "dict";
+// ---- Font partition (tools/make_font.py -> third_party/notosansjp/jp_fonts.pfn) -----
+constexpr const char* FONT_PARTITION_LABEL = "font";
 
 }  // namespace cfg

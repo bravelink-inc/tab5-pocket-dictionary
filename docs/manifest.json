@@ -1,6 +1,6 @@
 {
   "name": "Tab5 電子辞書",
-  "version": "v0",
+  "version": "v0.1",
   "new_install_prompt_erase": false,
   "new_install_improv_wait_time": 0,
   "builds": [
@@ -10,7 +10,8 @@
         { "path": "firmware/bootloader.bin", "offset": 8192 },
         { "path": "firmware/partition-table.bin", "offset": 65536 },
         { "path": "firmware/pocketdictionary.bin", "offset": 131072 },
-        { "path": "firmware/ejdict.pdc", "offset": 4194304 }
+        { "path": "firmware/ejdict.pdc", "offset": 4194304 },
+        { "path": "firmware/jp_fonts.pfn", "offset": 11010048 }
       ]
     }
   ]
