@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tab5 電子辞書 書き込みページ</title>
+<script type="module" src="esp-web-tools/install-button.js"></script>
+<style>
+  :root { --navy:#1F3B5C; --blue:#2F6FD6; --ink:#1B1F24; --muted:#5A6573; --line:#D5DAE1; --bg:#F6F8FB; }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family: "Hiragino Sans","Yu Gothic UI","Meiryo",sans-serif; color:var(--ink); background:var(--bg); line-height:1.7; }
+  header { background:var(--navy); color:#fff; padding:28px 20px; }
+  header h1 { margin:0; font-size:1.5rem; }
+  header p { margin:6px 0 0; opacity:.85; }
+  main { max-width:760px; margin:0 auto; padding:24px 20px 60px; }
+  section { background:#fff; border:1px solid var(--line); border-radius:12px; padding:20px 22px; margin:18px 0; }
+  h2 { font-size:1.15rem; margin:0 0 10px; color:var(--navy); }
+  ol { padding-left:1.3em; margin:0; }
+  li { margin:6px 0; }
+  .install { text-align:center; padding:28px 20px; }
+  esp-web-install-button button[slot="activate"] { font-size:1.15rem; padding:14px 34px; border-radius:10px; border:0; background:var(--blue); color:#fff; cursor:pointer; }
+  .note { color:var(--muted); font-size:.92rem; }
+  .warn { background:#FFF4E5; border-color:#F2C089; }
+  code { background:#EEF1F5; padding:1px 5px; border-radius:4px; }
+  table { border-collapse:collapse; width:100%; font-size:.95rem; }
+  esp-web-install-button:not(:defined) > span { display:none; }
+  #load-failed { display:none; color:#B3261E; }
+  td, th { border:1px solid var(--line); padding:6px 8px; text-align:left; }
+</style>
+</head>
+<body>
+<header>
+  <h1>M5Stack Tab5 電子辞書　書き込みページ</h1>
+  <p>書籍『M5Stack Tab5 で作る、自分だけの電子辞書』のファームウェア（版 v0）</p>
+</header>
+<main>
+  <section class="warn">
+    <h2>はじめに</h2>
+    <p>このページは、パソコンの <strong>Google Chrome</strong> か <strong>Microsoft Edge</strong> で開いてください（Safari・Firefox・スマートフォンでは使えません）。書き込むと、Tab5 に入っている元のデモアプリは消えます。</p>
+  </section>
+
+  <section>
+    <h2>手順</h2>
+    <ol>
+      <li>Tab5 の電源を入れ、<strong>USB-C</strong> ケーブルでパソコンにつなぎます（充電専用のケーブルは使えません）。</li>
+      <li>下の「Tab5 に書き込む」ボタンを押します。</li>
+      <li>一覧から <code>USB JTAG/serial debug unit</code>（Windows では「USB シリアル デバイス (COMx)」）を選んで「接続」を押します。</li>
+      <li>「Install」を押すと書き込みが始まります。<strong>1〜2 分</strong>かかるので、終わるまでケーブルを抜かないでください。</li>
+      <li>終わると Tab5 が再起動し、辞書の画面が出ます。</li>
+    </ol>
+  </section>
+
+  <section class="install">
+    <esp-web-install-button manifest="manifest.json">
+      <button slot="activate">Tab5 に書き込む</button>
+      <span slot="unsupported">このブラウザは対応していません。パソコンの Chrome か Edge で開いてください。</span>
+      <span slot="not-allowed">この画面は https で開く必要があります。</span>
+    </esp-web-install-button>
+    <p id="load-failed">書き込みの部品を読み込めませんでした。ページを再読み込みするか、パソコンの Chrome / Edge で開き直してください。</p>
+    <p class="note">書き込むもの: ファームウェア本体と、内蔵の英和辞書（約 4.6 万語）</p>
+  </section>
+
+  <section>
+    <h2>和英・漢字・国語辞典を足す（microSD カード）</h2>
+    <ol>
+      <li><a href="tab5-pocket-dictionary-v0-sd-dictionaries.zip">辞書セット（ZIP、約 26 MB）</a>をダウンロードして展開します。</li>
+      <li>microSD カード（32 GB 以下、FAT32）のいちばん上に、中の <code>dict</code> フォルダをそのままコピーします。</li>
+      <li>カードを Tab5 に挿して電源を入れ直すと、辞書が 5 冊になります（起動に約 9 秒かかります）。</li>
+    </ol>
+  </section>
+
+  <section>
+    <h2>うまくいかないとき</h2>
+    <table>
+      <tr><th>症状</th><th>対処</th></tr>
+      <tr><td>一覧に何も出ない</td><td>ケーブルをデータ通信対応のものに替える。Tab5 の電源が入っているか確認する。</td></tr>
+      <tr><td>接続に失敗する</td><td>ほかのアプリ（Arduino IDE など）がポートを使っていないか確認し、Tab5 をつなぎ直す。</td></tr>
+      <tr><td>途中で止まった</td><td>もう一度ボタンから書き込み直す。何度でもやり直せます。</td></tr>
+      <tr><td>ボタンで書き込めない</td><td><a href="tab5-pocket-dictionary-v0-firmware.bin">1 ファイル版のファームウェア</a>をダウンロードし、Espressif 公式の書き込みツール（<a href="https://espressif.github.io/esptool-js/">esptool-js</a>）でアドレス 0x0 に書き込む。</td></tr>
+    </table>
+    <p class="note">書き込みには ESPHome プロジェクトの <a href="https://github.com/esphome/esp-web-tools">ESP Web Tools</a>（Apache-2.0）を使っています。ソースコードと手順は <a href="https://github.com/bravelink-inc/tab5-pocket-dictionary">GitHub</a> にあります。</p>
+  </section>
+</main>
+<script>
+  setTimeout(function () {
+    if (!customElements.get("esp-web-install-button")) document.getElementById("load-failed").style.display = "block";
+  }, 4000);
+</script>
+</body>
+</html>

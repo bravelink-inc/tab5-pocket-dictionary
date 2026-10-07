@@ -1,0 +1,25 @@
+# ESP-IDF build outputs
+firmware/build/
+firmware/managed_components/
+firmware/sdkconfig
+firmware/sdkconfig.old
+# generated dictionary images (rebuilt from third_party/ejdict by the firmware build)
+data/*.pdc
+# device flash backups
+backups/
+.DS_Store
+# downloaded dictionary sources and generated SD-card images (rebuild with tools/convert_*.py)
+data/src/
+data/tsv/
+data/sd/
+tools/.venv/
+firmware/dependencies.lock
+__pycache__/
+*.pyc
+examples/*/build/
+examples/*/managed_components/
+examples/*/sdkconfig
+examples/*/sdkconfig.old
+case/.venv/
+case/out/
+release/
