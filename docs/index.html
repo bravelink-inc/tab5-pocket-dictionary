@@ -31,9 +31,13 @@
 <body>
 <header>
   <h1>M5Stack Tab5 電子辞書　書き込みページ</h1>
-  <p>書籍『M5Stack Tab5 で作る、自分だけの電子辞書』のファームウェア（版 v1.0-rc1）</p>
+  <p>書籍『M5Stack Tab5 で作る、自分だけの電子辞書』のファームウェア（版 v1.0-rc2）</p>
 </header>
 <main>
+  <section>
+    <h2>出版前の確認用候補 v1.0-rc2</h2>
+    <p>コードの試験とビルドは完了しています。Tab5 実機での保存・更新・復旧の確認は残っています。確認状況と配布ファイルの情報は <a href="build-info.json">検証記録</a>にあります。書き換える前に、SD カードの単語帳をパソコンへコピーしてください。</p>
+  </section>
   <section class="warn">
     <h2>はじめに</h2>
     <p>このページは、パソコンの <strong>Google Chrome</strong> か <strong>Microsoft Edge</strong> で開いてください（Safari・Firefox・スマートフォンでは使えません）。書き込むと、Tab5 に入っている元のデモアプリは消えます。</p>
@@ -57,11 +61,11 @@
       <span slot="not-allowed">この画面は https で開く必要があります。</span>
     </esp-web-install-button>
     <p id="load-failed">書き込みの部品を読み込めませんでした。ページを再読み込みするか、パソコンの Chrome / Edge で開き直してください。</p>
-    <p class="note">書き込むもの: ファームウェア本体と、内蔵の英和辞書（約 4.6 万語）</p>
+    <p class="note">書き込むもの: ファームウェア本体と、内蔵の英和辞書（約 4.7 万検索キー）</p>
   </section>
 
   <section>
-    <h2>和英・漢字・国語辞典とテストのデータを足す（microSD カード）</h2>
+    <h2>和英・漢字・語義と類語の辞書とテストのデータを足す（microSD カード）</h2>
     <p>和英・英和（逆引き）・漢字・国語の 4 冊と、テストの「基礎・標準・発展」「漢字の読み」のデータは、<a href="make-dict.html"><strong>辞書を作る</strong></a>のページで、公式サイトのデータから自分のパソコンの中で作り、microSD カード（32 GB 以下、FAT32）に入れます。カードを Tab5 に挿して電源を入れ直すと、辞書が 5 冊になります（起動に約 9 秒かかります）。</p>
   </section>
 
@@ -73,7 +77,7 @@
       <tr><td>接続に失敗する</td><td>ほかのアプリ（Arduino IDE など）がポートを使っていないか確認し、Tab5 をつなぎ直す。</td></tr>
       <tr><td>一覧には出るのに「Failed to initialize」と出る</td><td>ケーブルを別のものに替えるか、パソコンの別の差し込み口（USB ハブ経由も含む）につなぎ直して、もう一度ボタンから書き込む。一覧に名前が出るケーブルでも、書き込みのやりとりができないことがある。メッセージにある BOOT ボタンは Tab5 にはない。</td></tr>
       <tr><td>途中で止まった</td><td>もう一度ボタンから書き込み直す。何度でもやり直せます。</td></tr>
-      <tr><td>ボタンで書き込めない</td><td><a href="tab5-pocket-dictionary-v1.0-rc1-firmware.bin">復旧用の 1 ファイル版ファームウェア</a>をダウンロードし、Espressif 公式の書き込みツール（<a href="https://espressif.github.io/esptool-js/">esptool-js</a>）でアドレス 0x0 に書き込む。画面の向きと、SD カードなしで本体に保存した単語帳は初期化されます。</td></tr>
+      <tr><td>ボタンで書き込めない</td><td><a href="tab5-pocket-dictionary-v1.0-rc2-firmware.bin">復旧用の 1 ファイル版ファームウェア</a>をダウンロードし、Espressif 公式の書き込みツール（<a href="https://espressif.github.io/esptool-js/">esptool-js</a>）でアドレス 0x0 に書き込む。画面の向きと、SD カードなしで本体に保存した単語帳は初期化されます。</td></tr>
     </table>
     <p class="note">書き込みには ESPHome プロジェクトの <a href="https://github.com/esphome/esp-web-tools">ESP Web Tools</a>（Apache-2.0）を使っています。ソースコードと手順は <a href="https://github.com/bravelink-inc/tab5-pocket-dictionary">GitHub</a> にあります。</p>
   </section>

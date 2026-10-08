@@ -1,1 +1,1 @@
-32ba1bdccd22a3e252e513508c2f6476e1bd92cf4cdbb61f184349c287f494b4  tab5-pocket-dictionary-v1.0-rc1-firmware.bin
+e451414d992c9559795595a5ece46b75824fdff40767eee1f2e7961d52db7b2b  tab5-pocket-dictionary-v1.0-rc2-firmware.bin

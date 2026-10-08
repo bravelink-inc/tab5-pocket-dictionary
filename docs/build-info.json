@@ -1,17 +1,130 @@
 {
-  "version": "v1.0-rc1",
+  "version": "v1.0-rc2",
   "source_repository": "https://github.com/bravelink-inc/tab5-pocket-dictionary",
-  "source_commit": "bcf9e5669570ecfc8b129d4fc36165179e62e207",
-  "project_version": "v0.1-1-gbcf9e56",
+  "source_commit": "67c76bc18bbc575361f2cd58d516ffe68b627388",
+  "source_dirty": false,
+  "project_version": "v0.1-2-g67c76bc",
   "sdk": "ESP-IDF 5.5.5",
-  "m5unified": "0.2.23",
-  "m5gfx": "0.2.30",
+  "component_versions": {
+    "espressif/usb_host_hid": "1.2.1",
+    "idf": "5.5.5",
+    "m5stack/m5gfx": "0.2.30",
+    "m5stack/m5unified": "0.2.23"
+  },
+  "dependencies_lock_sha256": "983bd5e94eba8a3cddec14c0ff82a64dc3e21162466c53243d1556af585f81a8",
+  "sdkconfig_sha256": "11e96ce187d2ebc79d941f74d440fa8573c99378cd698994fe2f99a5bb33fbd0",
+  "ejdict_sources": [
+    {
+      "path": "third_party/ejdict/src/a.txt",
+      "sha256": "6c9dd02b083dfca28209c17f479e998a4c7065fb32e1c4a0a9b77e475b0d18c8"
+    },
+    {
+      "path": "third_party/ejdict/src/b.txt",
+      "sha256": "45a216a4c65fcc9febd48b7585f5c065c2409b6d54b2b27a37796a0b210d2f37"
+    },
+    {
+      "path": "third_party/ejdict/src/c.txt",
+      "sha256": "953c3b87ea9318853195750a78190428a8994f9a312dc43baa876ea90f41b98b"
+    },
+    {
+      "path": "third_party/ejdict/src/d.txt",
+      "sha256": "aca442261e00395eb2923431df392c8f805d03bfd156e55e1aa81c19e26135c2"
+    },
+    {
+      "path": "third_party/ejdict/src/e.txt",
+      "sha256": "ef9266736852ad234365fee4e53d2c21cfed4b706e44e06ffb457adf164d1961"
+    },
+    {
+      "path": "third_party/ejdict/src/f.txt",
+      "sha256": "a8a453696c2d79588fea6bcc30287f2a0be52f3f44a8c40f9cfb9612ba77998d"
+    },
+    {
+      "path": "third_party/ejdict/src/g.txt",
+      "sha256": "1bd194fd68311b2998c6473ca520d68dd5ef7794fe356dc87e05b15bbd5920bb"
+    },
+    {
+      "path": "third_party/ejdict/src/h.txt",
+      "sha256": "96ba3f8e5d54a208d92874c4d7a33f5ce7ac297811b2bb425bc146d24d31839e"
+    },
+    {
+      "path": "third_party/ejdict/src/i.txt",
+      "sha256": "4239c4e262a577010a98672621d7d178ded0af2980172f6484fd394fa1ed7fed"
+    },
+    {
+      "path": "third_party/ejdict/src/j.txt",
+      "sha256": "660376773da69cde641a119dcc62affe39cf3bb25483613c8b44c4938dc8da0f"
+    },
+    {
+      "path": "third_party/ejdict/src/k.txt",
+      "sha256": "2b1531a0fa4958431d08c89cc89d122d487f27b71159445f5ce3693545e6b5be"
+    },
+    {
+      "path": "third_party/ejdict/src/l.txt",
+      "sha256": "350ba29b5a9590b0f745a465b78371725208d55b37c21d6c1d102341e205f0cc"
+    },
+    {
+      "path": "third_party/ejdict/src/m.txt",
+      "sha256": "0b80b84698ac1b707d24e2d37634eaf530322a8f9a202155aba2be0348afc2d4"
+    },
+    {
+      "path": "third_party/ejdict/src/n.txt",
+      "sha256": "04a7f1b77de96281917ab8e078ed58343c2b063cceec74dc12f94b15bb16cf78"
+    },
+    {
+      "path": "third_party/ejdict/src/o.txt",
+      "sha256": "a922b2e0646467760a72c9e519e84056afbcc980c7c0f701d5048fee1964c046"
+    },
+    {
+      "path": "third_party/ejdict/src/p.txt",
+      "sha256": "df7b760021fb2717467061f40486c3cb033206b40671d3f7a78f5d092d442636"
+    },
+    {
+      "path": "third_party/ejdict/src/q.txt",
+      "sha256": "abd08f4612ddc23ea50f73ad638be6daecf604029df095116b040ac191744b5f"
+    },
+    {
+      "path": "third_party/ejdict/src/r.txt",
+      "sha256": "6933967d42ad070c9f7e81e70f20536addef7251f782f52f655b0b7f0e9208ea"
+    },
+    {
+      "path": "third_party/ejdict/src/s.txt",
+      "sha256": "daa1d8afd9313bc99d5ee7b6de9551b20f3333284bcd15b1d57cd8a836b6aa2c"
+    },
+    {
+      "path": "third_party/ejdict/src/t.txt",
+      "sha256": "17986bd042e5986bb850479503ced68b6176de489ed85f14535b2a25d5b33b24"
+    },
+    {
+      "path": "third_party/ejdict/src/u.txt",
+      "sha256": "e45c59f106976d1fcd5e156ef6a1f604a6089fc89f25abe83ba2a537242e1de5"
+    },
+    {
+      "path": "third_party/ejdict/src/v.txt",
+      "sha256": "b4efcde3ff2a825627c6dad6759f0a52099c4c2be6553cc0c5ce95f80817779b"
+    },
+    {
+      "path": "third_party/ejdict/src/w.txt",
+      "sha256": "f3e50f32541394848ca8f887f1157d6c893644e208479c285e1415773ab0be28"
+    },
+    {
+      "path": "third_party/ejdict/src/x.txt",
+      "sha256": "f533e13c265f61a42b88c8fcc868c850123bcf5effe7fc4dc6894419df356651"
+    },
+    {
+      "path": "third_party/ejdict/src/y.txt",
+      "sha256": "b30638d4323a1a05354fe9a447a25c6c1ba160bd44c39ca91fb6eba1f6d67bed"
+    },
+    {
+      "path": "third_party/ejdict/src/z.txt",
+      "sha256": "672b9338ed8fa3e95895360b55842e08b8d50be95a47ce70e1ad3eae2f2e2098"
+    }
+  ],
   "parts": [
     {
       "path": "firmware/bootloader.bin",
       "offset": 8192,
       "size": 24128,
-      "sha256": "44cab525bc47bb041d07656fa8fa09e35cdc264c57f2580351a3ab8728f65510"
+      "sha256": "271a618850df20699a6137ed49c90e0d088f69593d9ceaa00607c9d9695bd6cc"
     },
     {
       "path": "firmware/partition-table.bin",
@@ -22,14 +135,14 @@
     {
       "path": "firmware/pocketdictionary.bin",
       "offset": 131072,
-      "size": 2119936,
-      "sha256": "ab258c6b75a086eae0014a94d63fcca529280a9ca5740829663bb9be3c2dce84"
+      "size": 2124928,
+      "sha256": "02a14c50c898ea9f9a905267d8884969684c4e9d56d91c96d0f2767c73c83e35"
     },
     {
       "path": "firmware/ejdict.pdc",
       "offset": 4194304,
-      "size": 5459288,
-      "sha256": "524aadd659f0ffb851fb165a78ba717c2a5ae078e1547ef9ba1974e336b47fd2"
+      "size": 5467128,
+      "sha256": "2c86d7b95702616277953c4998259288591086d8feefb54699a98d13e6242c21"
     },
     {
       "path": "firmware/jp_fonts.pfn",
@@ -39,5 +152,10 @@
     }
   ],
   "recovery_resets_nvs": true,
-  "device_tested": false
+  "device_tested": false,
+  "recovery": {
+    "path": "tab5-pocket-dictionary-v1.0-rc2-firmware.bin",
+    "size": 15846204,
+    "sha256": "e451414d992c9559795595a5ece46b75824fdff40767eee1f2e7961d52db7b2b"
+  }
 }

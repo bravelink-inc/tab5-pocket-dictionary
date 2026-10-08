@@ -43,30 +43,48 @@ def main():
     root = ET.parse(io.BytesIO(raw.encode('utf-8'))).getroot()
 
     entries = []
-    readings_map = {}
+    readings_map = defaultdict(list)
     for e in root.iter('entry'):
         seq = e.findtext('ent_seq')
-        kebs, rebs, pris = [], [], set()
+        kebs, readings, pris = [], [], set()
         for k in e.findall('k_ele'):
             kebs.append(k.findtext('keb'))
             pris.update(p.text for p in k.findall('ke_pri'))
         for r in e.findall('r_ele'):
             reb = r.findtext('reb')
-            rebs.append(reb)
+            allowed = [k.text for k in r.findall('re_restr')]
+            writings = [] if r.find('re_nokanji') is not None else (allowed or kebs)
+            readings.append((reb, writings))
             pris.update(p.text for p in r.findall('re_pri'))
         senses = []
+        inherited_pos = []
         for s in e.findall('sense'):
-            pos = [p.text for p in s.findall('pos')]
+            pos = [p.text for p in s.findall('pos')] or inherited_pos
+            inherited_pos = pos
             misc = [m.text for m in s.findall('misc')]
             field = [f.text for f in s.findall('field')]
-            glosses = [g.text for g in s.findall('gloss') if g.text]
+            glosses = [g.text for g in s.findall('gloss') if g.text and
+                       g.get('{http://www.w3.org/XML/1998/namespace}lang', 'eng') == 'eng']
             if not glosses: continue
-            senses.append((pos, misc, field, glosses))
-        if not senses or not rebs: continue
+            senses.append((pos, misc, field, glosses,
+                           [k.text for k in s.findall('stagk')],
+                           [r.text for r in s.findall('stagr')]))
+        if not senses or not readings: continue
         pri = priority(pris)
-        entries.append((pri, int(seq), kebs, rebs, senses))
-        for kb in kebs:
-            readings_map.setdefault(kb, rebs[0])
+        # Emit only valid reading/writing/sense combinations. Group writings with
+        # identical senses; different readings remain separate dictionary records.
+        for reb, writings in readings:
+            groups = defaultdict(list)
+            for kb in writings or [None]:
+                valid = tuple(i for i, sense in enumerate(senses)
+                              if (not sense[4] or kb in sense[4]) and
+                                 (not sense[5] or reb in sense[5]))
+                if valid:
+                    groups[valid].append(kb)
+                    if kb and reb not in readings_map[kb]: readings_map[kb].append(reb)
+            for valid, forms in groups.items():
+                entries.append((pri, int(seq), [k for k in forms if k], [reb],
+                                [senses[i][:4] for i in valid]))
     entries.sort(key=lambda t: (t[0], t[1]))
     print(f'{len(entries)} entries', file=sys.stderr)
 
@@ -123,8 +141,9 @@ def main():
     print(f'eiwa: {n_lines} lines', file=sys.stderr)
 
     with open(f'{a.outdir}/jmdict_readings.tsv', 'w', encoding='utf-8') as f:
-        for k, v in readings_map.items():
-            f.write(f'{k}\t{v}\n')
+        for k, readings in readings_map.items():
+            for reading in readings:
+                f.write(f'{k}\t{reading}\n')
     print(f'readings: {len(readings_map)}', file=sys.stderr)
 
 
