@@ -6,6 +6,8 @@
 
 書籍の内容は、タグ `v1.0` の時点のものです。書籍の手順どおりに進めるときは、タグを指定して取得してください。
 
+`v1.0` は出版時に作成するタグです。作成前は次のコマンドでは取得できません。現在公開されている `v0`・`v0.1` は試作版で、書籍の手順とは異なります。
+
 ```bash
 git clone --branch v1.0 https://github.com/bravelink-inc/tab5-pocket-dictionary.git
 ```
@@ -19,9 +21,9 @@ git clone --branch v1.0 https://github.com/bravelink-inc/tab5-pocket-dictionary.
 | `firmware/` | 電子辞書のファームウェア（ESP-IDF v5.5、M5Unified、M5GFX） |
 | `examples/ch04_hello_tab5/` | 書籍の最初に書き込む、画面に文字を出すだけのサンプル |
 | `tools/` | 辞書データの変換、SD カードへの転送、画面の撮影などの道具（Python） |
-| `third_party/` | 内蔵の英和辞書、テスト用の単語リストと漢字の学年表、フォントと日本語 WordNet のライセンス |
+| `third_party/` | 内蔵の英和辞書（CC0）、フォント、日本語 WordNet と WordNet 3.0 の条文。和英・漢字・国語辞典とテストのデータはライセンスの条件があるので入れておらず、使う人が公式のデータから作る |
 | `case/` | 3D プリンターで作る台（クレードル）の生成プログラムと STL |
-| `web/`、`scripts/make_release.sh` | ブラウザから書き込むページと、配布用の一式を作るスクリプト |
+| `web/`、`scripts/make_release.sh` | ブラウザから書き込むページ、ブラウザで辞書を作るページ（`make-dict.html`）、配布用の一式を作るスクリプト |
 
 ## ビルドと書き込み（概要）
 
@@ -37,6 +39,8 @@ idf.py -p <ポート> flash
 `<ポート>` は macOS なら `/dev/cu.usbmodem1101` のような名前、Windows なら `COM3` のような名前です。
 
 ## ライセンス
+
+`v1.0` 以降は、JMdict・KANJIDIC2・日本語 WordNet・NGSL と変換したSDデータを新たに配布せず、読者が公式のデータから作ります。過去の試作版 `v0`・`v0.1` とGitの履歴には、旧方式の辞書セットやテストデータが残っています。最新版の手順に旧データを混ぜないでください。旧データを使う場合も、元データそれぞれの条件に従います。日本語 WordNet と WordNet 3.0 の条文は `third_party/wnja/` にあります。
 
 - このリポジトリのプログラムは MIT ライセンスです（`LICENSE`）
 - 辞書データ、単語リスト、フォントなどの第三者のデータは、それぞれのライセンスに従います（`THIRD_PARTY_NOTICES.md`）

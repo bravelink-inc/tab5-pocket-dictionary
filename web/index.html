@@ -61,12 +61,8 @@
   </section>
 
   <section>
-    <h2>和英・漢字・国語辞典を足す（microSD カード）</h2>
-    <ol>
-      <li><a href="__SD_ZIP_URL__">辞書セット（ZIP、約 __SD_ZIP_MB__ MB）</a>をダウンロードして展開します。</li>
-      <li>microSD カード（32 GB 以下、FAT32）のいちばん上に、中の <code>dict</code> フォルダをそのままコピーします。</li>
-      <li>カードを Tab5 に挿して電源を入れ直すと、辞書が 5 冊になります（起動に約 9 秒かかります）。</li>
-    </ol>
+    <h2>和英・漢字・国語辞典とテストのデータを足す（microSD カード）</h2>
+    <p>和英・英和（逆引き）・漢字・国語の 4 冊と、テストの「基礎・標準・発展」「漢字の読み」のデータは、<a href="make-dict.html"><strong>辞書を作る</strong></a>のページで、公式サイトのデータから自分のパソコンの中で作り、microSD カード（32 GB 以下、FAT32）に入れます。カードを Tab5 に挿して電源を入れ直すと、辞書が 5 冊になります（起動に約 9 秒かかります）。</p>
   </section>
 
   <section>
@@ -77,9 +73,20 @@
       <tr><td>接続に失敗する</td><td>ほかのアプリ（Arduino IDE など）がポートを使っていないか確認し、Tab5 をつなぎ直す。</td></tr>
       <tr><td>一覧には出るのに「Failed to initialize」と出る</td><td>ケーブルを別のものに替えるか、パソコンの別の差し込み口（USB ハブ経由も含む）につなぎ直して、もう一度ボタンから書き込む。一覧に名前が出るケーブルでも、書き込みのやりとりができないことがある。メッセージにある BOOT ボタンは Tab5 にはない。</td></tr>
       <tr><td>途中で止まった</td><td>もう一度ボタンから書き込み直す。何度でもやり直せます。</td></tr>
-      <tr><td>ボタンで書き込めない</td><td><a href="__FW_BIN__">1 ファイル版のファームウェア</a>をダウンロードし、Espressif 公式の書き込みツール（<a href="https://espressif.github.io/esptool-js/">esptool-js</a>）でアドレス 0x0 に書き込む。</td></tr>
+      <tr><td>ボタンで書き込めない</td><td><a href="__FW_BIN__">復旧用の 1 ファイル版ファームウェア</a>をダウンロードし、Espressif 公式の書き込みツール（<a href="https://espressif.github.io/esptool-js/">esptool-js</a>）でアドレス 0x0 に書き込む。画面の向きと、SD カードなしで本体に保存した単語帳は初期化されます。</td></tr>
     </table>
     <p class="note">書き込みには ESPHome プロジェクトの <a href="https://github.com/esphome/esp-web-tools">ESP Web Tools</a>（Apache-2.0）を使っています。ソースコードと手順は <a href="https://github.com/bravelink-inc/tab5-pocket-dictionary">GitHub</a> にあります。</p>
+  </section>
+
+  <section>
+    <h2>使っているデータとライセンス</h2>
+    <table>
+      <tr><th>書き込むもの</th><th>出典とライセンス</th></tr>
+      <tr><td>ファームウェアのプログラム</td><td>本書のプログラム（MIT）。ESP-IDF（Apache-2.0）、FreeRTOS（MIT）、M5Unified・M5GFX（MIT）、usb_host_hid（Apache-2.0）を含む。条文は <a href="firmware/licences/">firmware/licences</a> と <a href="firmware/THIRD_PARTY_NOTICES.md">THIRD_PARTY_NOTICES.md</a></td></tr>
+      <tr><td>内蔵の英和辞書</td><td><a href="https://github.com/kujirahand/EJDict">EJDict-hand</a>（kujirahand）、CC0 1.0（パブリックドメイン）</td></tr>
+      <tr><td>日本語フォント</td><td>Noto Sans JP（SIL Open Font License 1.1、<a href="firmware/OFL.txt">条文</a>）と、IPA ゴシック由来の lgfxJapanGothic（IPA フォントライセンス v1.0、<a href="firmware/IPA_Font_License_Agreement_v1.0.txt">条文</a>）</td></tr>
+    </table>
+    <p class="note">microSD カードの辞書とテストのデータは、このサイトからは配布していません。「辞書を作る」で使う人が作るもので、出典とライセンスはカードの <code>dict</code> フォルダの「出典とライセンス.txt」と、Tab5 の画面（Ctrl+L）に出ます。</p>
   </section>
 </main>
 <script>
