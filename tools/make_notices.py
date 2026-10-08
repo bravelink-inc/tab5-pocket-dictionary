@@ -84,7 +84,7 @@ KANJIDIC の説明: https://www.edrdg.org/wiki/index.php/KANJIDIC_Project
 この 2 つのファイルも CC BY-SA 4.0 です。
 
 
-■ 40_wnjpn_kokugo.pdc（日本語 WordNet 国語辞典）
+■ 40_wnjpn_kokugo.pdc（日本語 WordNet（語義・類語））
 
 元データ: 日本語 WordNet 1.1（wnjpn-ok.tab.gz、wnjpn-def.tab.gz）。日本語 WordNet は Princeton
 WordNet 3.0 をもとに作られている。

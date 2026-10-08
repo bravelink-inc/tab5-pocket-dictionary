@@ -83,6 +83,7 @@ struct Hit {
 };
 
 constexpr int ALL_DICTS = -1;
+Dictionary* quizDict();
 
 struct State {
     std::vector<std::unique_ptr<Dictionary>>* dicts = nullptr;
@@ -136,6 +137,7 @@ size_t utf8len(unsigned char c)
 }
 
 // [book:8-wrap]
+// [book:8-wrap-start]
 // Word-wrap `text` into `out`. ASCII words are kept whole where possible; CJK text
 // breaks anywhere. `firstIndent`/`restIndent` give a hanging indent.
 void wrapInto(LovyanGFX& g, const lgfx::IFont* font, const std::string& text, int width,
@@ -154,6 +156,7 @@ void wrapInto(LovyanGFX& g, const lgfx::IFont* font, const std::string& text, in
 
     size_t i = 0;
     while (i < text.size()) {
+// [/book:8-wrap-start]
         size_t n = std::min(utf8len(static_cast<unsigned char>(text[i])), text.size() - i);
         std::string ch = text.substr(i, n);
         const int cw = g.textWidth(ch.c_str());
@@ -168,6 +171,7 @@ void wrapInto(LovyanGFX& g, const lgfx::IFont* font, const std::string& text, in
                 flush(line);
                 line.clear();
                 lineW = 0;
+// [book:8-wrap-end]
             }
             auto p = line.rfind(' ');
             lastSpace = (p == std::string::npos) ? -1 : static_cast<int>(p);
@@ -180,6 +184,7 @@ void wrapInto(LovyanGFX& g, const lgfx::IFont* font, const std::string& text, in
     }
     if (!line.empty() || out.empty()) flush(line);
 }
+// [/book:8-wrap-end]
 // [/book:8-wrap]
 
 std::vector<std::string> splitSenses(const std::string& def)
@@ -210,7 +215,9 @@ void layoutBody()
     if (!d->entry(hit.idx, head, def)) return;
 
     const int width = BODY_W - 2 * BODY_PAD;
-    wrapInto(screenCv, F_HEAD, wordbook::contains(head) ? head + "　〔単語帳〕" : head, width, 0, 0, C_HEAD, S.body);
+    const bool saved = wordbook::contains(head) ||
+        (d == quizDict() && wordbook::containsQuizKey(d->key(hit.idx)));
+    wrapInto(screenCv, F_HEAD, saved ? head + "　〔単語帳〕" : head, width, 0, 0, C_HEAD, S.body);
     if (allMode()) S.body.push_back(Line{d->title(), F_SMALL, C_HINT2, 0, 26});
     S.body.push_back(Line{"", F_BODY, C_TEXT, 0, 14});   // spacer (divider drawn here)
 
@@ -385,10 +392,10 @@ void drawHeader()
     } else if (allMode()) {
         uint32_t total = 0;
         for (int i = 0; i < dictCount(); ++i) total += dictAt(i)->count();
-        title = "すべての辞書 (" + std::to_string(dictCount()) + " 冊, " + std::to_string(total) + " 語)";
+        title = "すべての辞書 (" + std::to_string(dictCount()) + " 冊, " + std::to_string(total) + " キー)";
     } else {
         Dictionary* d = dictAt(S.active == ALL_DICTS ? 0 : S.active);
-        title = d->title() + "  (" + std::to_string(d->count()) + " 語)";
+        title = d->title() + "  (" + std::to_string(d->count()) + " キー)";
         if (dictCount() > 1) title = "[" + std::to_string(S.active + 1) + "/" + std::to_string(dictCount()) + "] " + title;
     }
     g.drawString(title.c_str(), SCREEN_W - 20, 14);
@@ -398,7 +405,7 @@ void drawHeader()
     std::string kbd = S.kbdI2c ? "KB: Tab5 Keyboard" : (S.kbdUsb ? "KB: USB" : "キーボード未接続");
     if (S.kbdI2c && S.kbdUsb) kbd = "KB: Tab5 Keyboard + USB";
     kbd += sdcard_mounted() ? "   SD: OK" : "   SD: なし";
-    kbd += "   単語帳 " + std::to_string(wordbook::words().size()) + " 語";
+    kbd += "   単語帳 " + std::to_string(wordbook::entries().size()) + " 件";
     g.drawString(kbd.c_str(), SCREEN_W - 20, 54);
 }
 
@@ -477,9 +484,9 @@ void drawFooter()
     PaneClip clip(0, SCREEN_H - FOOTER_H, SCREEN_W, FOOTER_H);
     g.fillRect(0, SCREEN_H - FOOTER_H, SCREEN_W, FOOTER_H, C_FOOTER);
     g.setFont(F_SMALL);
-    g.setTextColor(C_FOOTER_T);
+    g.setTextColor(wordbook::lastError().empty() ? C_FOOTER_T : C_WARN);
     g.setTextDatum(textdatum_t::middle_left);
-    g.drawString("↑↓ 選択  PgUp/Dn ページ  ←→ 説明  Tab 辞書  Enter 単語帳  Ctrl+T テスト  Esc クリア  Ctrl+R 反転  Ctrl+Q 電源  Ctrl+L 出典",
+    g.drawString(wordbook::lastError().empty() ? "↑↓ 選択  PgUp/Dn ページ  ←→ 説明  Tab 辞書  Enter 単語帳  Ctrl+T テスト  Esc クリア  Ctrl+R 反転  Ctrl+Q 電源  Ctrl+L 出典" : wordbook::lastError().c_str(),
                  16, SCREEN_H - FOOTER_H / 2);
 }
 
@@ -620,7 +627,8 @@ void loadQuizData()
     });
     ESP_LOGI(TAG, "quiz data: freq %u, ngsl %u/%u/%u, kanji %u", (unsigned)g_freqWords.size(),
              (unsigned)g_ngsl[1].size(), (unsigned)g_ngsl[2].size(), (unsigned)g_ngsl[3].size(), (unsigned)g_kanji.size());
-}// [/book:13-load-data]
+}
+// [/book:13-load-data]
 
 
 struct KanjiEntry { std::string ch; std::vector<std::string> on, kun; };
@@ -667,7 +675,7 @@ std::string kanjiReadings(const KanjiEntry& k)
 Dictionary* quizDict()
 {
     for (int i = 0; i < dictCount(); ++i) if (dictAt(i)->source() == "flash") return dictAt(i);
-    return dictAt(0);
+    return nullptr;
 }
 
 bool lookupExact(Dictionary* d, const std::string& word, std::string& head, std::string& def)
@@ -699,13 +707,30 @@ std::string firstSense(const std::string& def)
 
 uint32_t rnd(uint32_t n) { return n ? esp_random() % n : 0; }
 
+std::vector<std::string> g_wordbookPool;
+
+void refreshWordbookPool()
+{
+    g_wordbookPool.clear();
+    for (const auto& e : wordbook::entries()) {
+        std::string head, def;
+        if (!e.quizKey.empty() && lookupExact(quizDict(), e.quizKey, head, def) && !def.empty())
+            g_wordbookPool.push_back(e.quizKey);
+    }
+    std::sort(g_wordbookPool.begin(), g_wordbookPool.end());
+    g_wordbookPool.erase(std::unique(g_wordbookPool.begin(), g_wordbookPool.end()), g_wordbookPool.end());
+}
+
 bool buildPool()
 {
+    refreshWordbookPool();
     Z.pool.clear();
     if (Z.level == LEVEL_FREQ || Z.level == LEVEL_WORDBOOK)
-        for (const auto& w : wordbook::words()) Z.pool.push_back(w);
+        Z.pool = g_wordbookPool;
     if (Z.level == LEVEL_FREQ) for (const auto& w : g_freqWords) Z.pool.push_back(w);
     if (Z.level >= 1 && Z.level <= 3) Z.pool = g_ngsl[Z.level];
+    std::sort(Z.pool.begin(), Z.pool.end());
+    Z.pool.erase(std::unique(Z.pool.begin(), Z.pool.end()), Z.pool.end());
     return Z.pool.size() >= 4;
 }
 
@@ -723,7 +748,8 @@ bool pickWord(std::string& word, std::string& def, const std::string& avoid, boo
 {
     Dictionary* d = quizDict();
     for (int tries = 0; tries < 40; ++tries) {
-        const auto& wb = wordbook::words();
+        if (Z.pool.empty()) return false;
+        const auto& wb = g_wordbookPool;
         std::string w;
         if (!wb.empty() && Z.level == LEVEL_FREQ && rnd(2) == 0) w = wb[rnd(wb.size())];
         else w = Z.pool[rnd(Z.pool.size())];
@@ -738,6 +764,7 @@ bool pickWord(std::string& word, std::string& def, const std::string& avoid, boo
 // Kanji reading question: show one kanji, answer one of its on (katakana) or kun (hiragana)
 // readings. Distractors are readings of the same kind from other kanji of the same grades.
 // [book:13-kanji-question]
+// [book:13-kanji-question-start]
 bool nextKanjiQuestion()
 {
     std::vector<uint32_t> idx;
@@ -756,6 +783,7 @@ bool nextKanjiQuestion()
     Question q;
     q.word = k.ch;
     q.def = kanjiReadings(k);
+// [/book:13-kanji-question-start]
     q.kind = useOn ? 1 : 2;
     std::string opts[4];
     opts[0] = mine[rnd(mine.size())];
@@ -768,6 +796,7 @@ bool nextKanjiQuestion()
             bool clash = std::find(k.on.begin(), k.on.end(), cand) != k.on.end() ||
                          std::find(k.kun.begin(), k.kun.end(), cand) != k.kun.end();
             for (int j = 1; j < i; ++j) clash |= (opts[j] == cand);
+// [book:13-kanji-question-end]
             if (!clash) { opts[i] = cand; break; }
         }
         if (opts[i].empty()) return false;
@@ -779,7 +808,9 @@ bool nextKanjiQuestion()
     Z.asked.push_back(q.word);
     Z.answered = -1;
     return true;
-}// [/book:13-kanji-question]
+}
+// [/book:13-kanji-question-end]
+// [/book:13-kanji-question]
 
 
 // [book:13-next-question]
@@ -838,7 +869,7 @@ void answerQuiz(int k)
                 (Z.kind == QuizKind::Kanji ? Z.q.def : firstSense(Z.q.def));
             Z.wrong.emplace_back(Z.q.word, line);
         }
-        if (Z.kind == QuizKind::Word) wordbook::add(Z.q.word);   // the wordbook holds English words
+        if (Z.kind == QuizKind::Word) wordbook::add(Z.q.word, Z.q.word);
     }
     invalidate(DIRTY_ALL);
 }
@@ -876,8 +907,8 @@ void drawQuizChrome(const char* title, const char* footer)
     g.setFont(F_QUERY); g.setTextColor(C_HEADER_T);
     g.drawString(title, 24, HEADER_H / 2);
     g.fillRect(0, SCREEN_H - FOOTER_H, SCREEN_W, FOOTER_H, C_FOOTER);
-    g.setFont(F_SMALL); g.setTextColor(C_FOOTER_T);
-    g.drawString(footer, 16, SCREEN_H - FOOTER_H / 2);
+    g.setFont(F_SMALL); g.setTextColor(wordbook::lastError().empty() ? C_FOOTER_T : C_WARN);
+    g.drawString(wordbook::lastError().empty() ? footer : wordbook::lastError().c_str(), 16, SCREEN_H - FOOTER_H / 2);
 }
 
 // Menu rows: keys 1-5 = word quiz sources, 6-9 = kanji grade ranges.
@@ -896,7 +927,8 @@ constexpr int MENU_Y0 = 170, MENU_ROW = 76, MENU_COL2 = 700;
 
 bool menuItemEnabled(int i)
 {
-    if (i == 4) return wordbook::words().size() >= 4;
+    if (i < 5 && !quizDict()) return false;
+    if (i == 4) return g_wordbookPool.size() >= 4;
     if (i >= 1 && i <= 3) return g_ngsl[i].size() >= 4;
     if (i >= 5 && i <= 8) return kanjiCount(kKanjiItems[i - 5].lo, kKanjiItems[i - 5].hi) >= 4;
     return true;
@@ -904,6 +936,7 @@ bool menuItemEnabled(int i)
 
 void drawQuizMenu()
 {
+    refreshWordbookPool();
     auto& g = screenCv;
     drawQuizChrome("テスト", "1〜9 で開始    Tab 英→和 / 和→英    Esc 辞書に戻る");
     g.setTextDatum(textdatum_t::top_left);
@@ -924,8 +957,9 @@ void drawQuizMenu()
         g.setFont(F_SMALL); g.setTextColor(C_HINT2);
         g.drawString((std::to_string(kanjiCount(kKanjiItems[i].lo, kKanjiItems[i].hi)) + " 字").c_str(), MENU_COL2 + 44, y + 36);
     }
-    std::string info = "単語帳 " + std::to_string(wordbook::words().size()) +
-                       " 語（辞書で Enter、英単語テストで間違えた語も入ります）。10 問 1 セット、1〜4 かタッチで回答";
+    std::string info = "単語帳 " + std::to_string(wordbook::entries().size()) +
+                       " 件（出題できる英単語 " + std::to_string(g_wordbookPool.size()) +
+                       " 語）。最大10問、1〜4かタッチで回答";
     if (g_ngsl[1].empty() || g_kanji.empty())
         drawTextBlock(F_SMALL, 0xD64545, "灰色のテストは、SD カードの dict フォルダにテストのデータ"
                       "（ngsl_levels.txt、kanji_quiz.txt）を作ると使えます", 60, SCREEN_H - FOOTER_H - 100, SCREEN_W - 120, 1);
@@ -949,7 +983,8 @@ void startMenuItem(int item)
         return;
     }
     startQuiz();
-}// [/book:13-menu-item]
+}
+// [/book:13-menu-item]
 
 
 constexpr int OPT_Y0 = 286, OPT_H = 68, OPT_GAP = 8;
@@ -996,7 +1031,8 @@ void drawQuizQuestion()
         const int y = OPT_Y0 + 4 * (OPT_H + OPT_GAP) + 4;
         g.setTextDatum(textdatum_t::top_left);
         g.setFont(F_SMALL); g.setTextColor(Z.answered == Z.q.correct ? (uint32_t)0x2E9E5B : (uint32_t)0xD64545);
-        g.drawString(Z.answered == Z.q.correct ? "正解！" : (kanji ? "不正解" : "不正解 → 単語帳へ"), x, y);
+        g.drawString(Z.answered == Z.q.correct ? "正解！" : (kanji ? "不正解" :
+                     (wordbook::lastError().empty() ? "不正解 → 単語帳へ" : "不正解（単語帳未保存）")), x, y);
         drawTextBlock(F_SMALL, C_TEXT, Z.q.word + ": " + Z.q.def, x + 250, y, w - 250, 2);
     }
 }
@@ -1021,7 +1057,7 @@ const struct { const char* head; const char* body; } kCredits[] = {
      "JMdict と KANJIDIC2 を使っています。These files are the property of the Electronic Dictionary "
      "Research and Development Group, and are used in conformance with the Group's licence. "
      "CC BY-SA 4.0　https://www.edrdg.org/"},
-    {"国語辞典",
+    {"語義・類語辞書",
      "日本語 WordNet（NICT、Francis Bond ほか）。Japanese WordNet License。"
      "元になった WordNet 3.0 は Copyright 2006 by Princeton University"},
     {"英単語テスト（基礎・標準・発展）",
@@ -1172,6 +1208,7 @@ void reloadDictionaries()
     S.results.clear();
     dict_store::loadAll(*S.dicts);
     loadQuizData();   // the quiz lists sit next to the SD dictionaries
+    wordbook::load(); // also refresh a wordbook restored through the transfer tool
     if (S.active >= dictCount()) S.active = ALL_DICTS;
     doSearch();
     drawAll();
@@ -1180,6 +1217,7 @@ void reloadDictionaries()
 void onKeyQuiz(const KeyEvent& ev);
 
 // [book:8-on-key]
+// [book:8-on-key-start]
 void onKey(const KeyEvent& ev)
 {
     const uint8_t k = ev.keycode;
@@ -1198,6 +1236,7 @@ void onKey(const KeyEvent& ev)
         return;
     }
     if (ctrl && k == 0x0F) {   // Ctrl+L: sources and licences
+// [/book:8-on-key-start]
         g_mode = Mode::Credits;
         invalidate(DIRTY_ALL);
         return;
@@ -1248,9 +1287,9 @@ void onKey(const KeyEvent& ev)
         Dictionary* d = dictAt(S.results[S.selected].dict);
         std::string head, def;
         if (d && d->entry(S.results[S.selected].idx, head, def)) {
-            wordbook::toggle(head);
+            wordbook::toggle(head, d == quizDict() ? d->key(S.results[S.selected].idx) : "");
             layoutBody();
-            invalidate(DIRTY_HEADER | DIRTY_BODY);
+            invalidate(DIRTY_HEADER | DIRTY_BODY | DIRTY_FOOTER);
         }
         return;
     }
@@ -1267,6 +1306,7 @@ void onKey(const KeyEvent& ev)
         drawAll();
         return;
     }
+// [book:8-on-key-end]
     if (ctrl && k == 0x18) {   // Ctrl+U: clear
         if (!S.query.empty()) { S.query.clear(); doSearch(); drawAll(); }
         return;
@@ -1279,6 +1319,7 @@ void onKey(const KeyEvent& ev)
         drawAll();
     }
 }
+// [/book:8-on-key-end]
 // [/book:8-on-key]
 
 void onTouch()
@@ -1356,6 +1397,7 @@ void ui::showSplash(const char* message)
 }
 
 // [book:8-run]
+// [book:8-run-start]
 void ui::run(std::vector<std::unique_ptr<Dictionary>>& dicts)
 {
     applyFonts();
@@ -1372,8 +1414,25 @@ void ui::run(std::vector<std::unique_ptr<Dictionary>>& dicts)
 
     struct { bool active = false; KeyEvent ev{}; int64_t next = 0; } repeat;
     int64_t lastStatus = 0;
+    bool transferWasPaused = false;
 
+// [/book:8-run-start]
     for (;;) {
+        if (dict_store::transferPauseRequested()) {
+            if (!transferWasPaused) {
+                S.results.clear(); S.body.clear(); dicts.clear();
+                repeat.active = false;
+            }
+            transferWasPaused = true;
+            dict_store::acknowledgeTransferPause();
+            vTaskDelay(pdMS_TO_TICKS(20));
+            continue;
+        }
+        if (transferWasPaused) {
+            transferWasPaused = false;
+            g_mode = Mode::Dict;
+            reloadDictionaries();
+        }
         KeyEvent ev;
         // Handle every queued key before redrawing so fast typing costs one redraw
         // (bounded so a stuck key cannot starve touch handling and rendering).
@@ -1404,6 +1463,7 @@ void ui::run(std::vector<std::unique_ptr<Dictionary>>& dicts)
         if (dict_store::reloadPending()) reloadDictionaries();
         render();
         if (debug_screenshot_pending()) debug_dump_screen();
+// [book:8-run-end]
 
         if (now - lastStatus > 500 * 1000) {
             lastStatus = now;
@@ -1416,4 +1476,5 @@ void ui::run(std::vector<std::unique_ptr<Dictionary>>& dicts)
         }
     }
 }
+// [/book:8-run-end]
 // [/book:8-run]

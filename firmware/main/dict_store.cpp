@@ -8,13 +8,21 @@
 #include "esp_log.h"
 #include "esp_partition.h"
 #include "app_config.hpp"
+#include "file_replace.hpp"
 
 static const char* TAG = "dict_store";
 static std::atomic<bool> s_reload{false};
+static std::atomic<bool> s_pause{false}, s_paused{false};
 void dict_store::requestReload() { s_reload = true; }
 bool dict_store::reloadPending() { return s_reload.exchange(false); }
+void dict_store::requestTransferPause() { s_paused = false; s_pause = true; }
+bool dict_store::transferPauseRequested() { return s_pause; }
+void dict_store::acknowledgeTransferPause() { s_paused = true; }
+bool dict_store::transferPaused() { return s_paused; }
+void dict_store::endTransferPause() { s_pause = false; }
 
 // [book:7-load-flash]
+// [book:7-load-flash-start]
 static bool loadFlash(std::vector<std::unique_ptr<Dictionary>>& out)
 {
     const esp_partition_t* part = esp_partition_find_first(ESP_PARTITION_TYPE_ANY, ESP_PARTITION_SUBTYPE_ANY, cfg::DICT_PARTITION_LABEL);
@@ -28,21 +36,36 @@ static bool loadFlash(std::vector<std::unique_ptr<Dictionary>>& out)
     uint32_t total; memcpy(&total, hdr + 44, 4);
     if (total < 64 || total > part->size) { ESP_LOGW(TAG, "flash image size %lu invalid", (unsigned long)total); return false; }
 
-    const void* ptr = nullptr;
-    esp_partition_mmap_handle_t handle;
-    esp_err_t err = esp_partition_mmap(part, 0, total, ESP_PARTITION_MMAP_DATA, &ptr, &handle);
-    if (err != ESP_OK) { ESP_LOGE(TAG, "mmap failed: %s", esp_err_to_name(err)); return false; }
+    // Flash is unchanged during a running firmware. Reuse one mapping for its
+    // lifetime instead of leaking a mapping handle on every SD transfer/reload.
+    static const void* mapped = nullptr;
+    static uint32_t mappedSize = 0;
+    esp_partition_mmap_handle_t handle = 0;
+// [/book:7-load-flash-start]
+    const void* ptr = mapped;
+    const bool newMapping = !ptr;
+    if (newMapping) {
+        esp_err_t err = esp_partition_mmap(part, 0, total, ESP_PARTITION_MMAP_DATA, &ptr, &handle);
+// [book:7-load-flash-end]
+        if (err != ESP_OK) { ESP_LOGE(TAG, "mmap failed: %s", esp_err_to_name(err)); return false; }
+    } else if (total != mappedSize) return false;
 
     auto d = std::make_unique<Dictionary>();
-    if (!d->openMemory(static_cast<const uint8_t*>(ptr), total, "flash")) { esp_partition_munmap(handle); return false; }
+    if (!d->openMemory(static_cast<const uint8_t*>(ptr), total, "flash")) {
+        if (newMapping) esp_partition_munmap(handle);
+        return false;
+    }
+    if (newMapping) { mapped = ptr; mappedSize = total; }
     out.push_back(std::move(d));
     return true;
 }
+// [/book:7-load-flash-end]
 // [/book:7-load-flash]
 
 // [book:11-load-sd]
 static size_t loadSd(std::vector<std::unique_ptr<Dictionary>>& out)
 {
+    file_replace::recoverDirectory(cfg::SD_DICT_DIR);
     DIR* dir = opendir(cfg::SD_DICT_DIR);
     if (!dir) { ESP_LOGI(TAG, "%s not found", cfg::SD_DICT_DIR); return 0; }
 

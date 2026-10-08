@@ -121,6 +121,7 @@ void usbLibTask(void* arg)
 }
 
 // [book:9-usb-connect]
+// [book:9-usb-connect-start]
 void hidTask(void*)
 {
     TaskHandle_t self = xTaskGetCurrentTaskHandle();
@@ -139,6 +140,7 @@ void hidTask(void*)
         .callback = driverCallback,
         .callback_arg = nullptr,
     };
+// [/book:9-usb-connect-start]
     esp_err_t err = hid_host_install(&drv);
     if (err != ESP_OK) {
         ESP_LOGE(TAG, "hid_host_install failed: %s", esp_err_to_name(err));
@@ -153,6 +155,7 @@ void hidTask(void*)
         if (ev.event != HID_HOST_DRIVER_EVENT_CONNECTED) continue;
 
         hid_host_dev_params_t params;
+// [book:9-usb-connect-end]
         if (hid_host_device_get_params(ev.handle, &params) != ESP_OK) continue;
         ESP_LOGI(TAG, "HID device connected: subclass %u proto %u", params.sub_class, params.proto);
 
@@ -165,6 +168,7 @@ void hidTask(void*)
         if (hid_host_device_start(ev.handle) == ESP_OK && params.proto == HID_PROTOCOL_KEYBOARD) s_keyboards++;
     }
 }
+// [/book:9-usb-connect-end]
 // [/book:9-usb-connect]
 
 }  // namespace

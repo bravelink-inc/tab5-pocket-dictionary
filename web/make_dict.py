@@ -13,7 +13,7 @@ INPUTS = {"jmdict": "JMdict_e.gz", "kanjidic": "kanjidic2.xml.gz", "wnok": "wnjp
 DICTS = [("JMdict 和英", "和英", "10_jmdict_waei", "jmdict_waei"),
          ("JMdict 英和（逆引き）", "英和J", "20_jmdict_eiwa", "jmdict_eiwa"),
          ("KANJIDIC2 漢字辞典", "漢字", "30_kanjidic2", "kanjidic2"),
-         ("日本語 WordNet 国語辞典", "国語", "40_wnjpn_kokugo", "wnjpn_kokugo")]
+         ("日本語 WordNet（語義・類語）", "類語", "40_wnjpn_kokugo", "wnjpn_kokugo")]
 
 
 def put_input(kind, data):
@@ -45,7 +45,7 @@ def src(kind):
 STEPS = [
     ("JMdict を和英・英和に変換", lambda: run("convert_jmdict.py", src("jmdict"), "-o", TSV)),
     ("KANJIDIC2 を漢字辞典に変換", lambda: run("convert_kanjidic.py", src("kanjidic"), "-o", f"{TSV}/kanjidic2.tsv")),
-    ("日本語 WordNet を国語辞典に変換", lambda: run("convert_wnjpn.py", src("wnok"), src("wndef"),
+    ("日本語 WordNet を語義・類語辞書に変換", lambda: run("convert_wnjpn.py", src("wnok"), src("wndef"),
                                               "--readings", f"{TSV}/jmdict_readings.tsv", "-o", f"{TSV}/wnjpn_kokugo.tsv")),
 ] + [
     (f"{title} を .pdc にする", (lambda t=title, g=tag, o=out, s=tsv: run(

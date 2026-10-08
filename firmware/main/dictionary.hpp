@@ -1,3 +1,4 @@
+// [book:8-dictionary-interface-start]
 #pragma once
 #include <cstdint>
 #include <cstdio>
@@ -22,6 +23,8 @@ public:
     void close();
 
     bool valid() const { return _count != 0; }
+// [/book:8-dictionary-interface-start]
+// [book:8-dictionary-interface-end]
     uint32_t count() const { return _count; }
     const std::string& title() const { return _title; }
     const std::string& tag() const { return _tag; }      // short label for cross-dictionary results
@@ -39,6 +42,7 @@ public:
     // Same normalization as build_dict.py for ASCII input (lowercase, trim, collapse spaces).
     static std::string normalize(const std::string& text);
 
+// [/book:8-dictionary-interface-end]
 private:
     struct Header {
         uint32_t version, count, flags;
