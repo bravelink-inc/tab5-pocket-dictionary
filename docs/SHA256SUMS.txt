@@ -1,2 +1,1 @@
-cd1fb3ec05c2acd1d2a710ed64afd2c359f52edbd94f9dc353576e47d12657a5  tab5-pocket-dictionary-v0.1-firmware.bin
-6aeba6c09f53a169b70360d0cbf4c98be54a10157899e835bee80de0809f6551  tab5-pocket-dictionary-v0.1-sd-dictionaries.zip
+32ba1bdccd22a3e252e513508c2f6476e1bd92cf4cdbb61f184349c287f494b4  tab5-pocket-dictionary-v1.0-rc1-firmware.bin

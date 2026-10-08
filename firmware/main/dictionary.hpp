@@ -29,7 +29,7 @@ public:
     bool lazy() const { return _fp != nullptr; }
 
     // Normalized key of entry i (lowercase, sorted bytewise).
-    const char* key(uint32_t i) const { return _keys + _kidx[i]; }
+    const char* key(uint32_t i) const { return i < _count ? _keys + _kidx[i] : ""; }
     // First index whose key is >= prefix.
     uint32_t lowerBound(const char* prefix) const;
     bool hasPrefix(uint32_t i, const char* prefix) const;
@@ -45,6 +45,7 @@ private:
         uint32_t keys_off, keys_size, kidx_off, dref_off, defs_off, defs_size, title_off, total_size;
     };
     static bool parseHeader(const uint8_t* raw, size_t avail, Header& h);
+    static bool validateIndex(const Header& h, const uint8_t* index);
     static std::string readTag(const uint8_t* raw);
     void setTitle(const char* title, size_t maxlen);
     void attach(const Header& h, const uint8_t* index_base, const uint8_t* defs_base);

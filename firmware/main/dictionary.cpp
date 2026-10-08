@@ -19,7 +19,7 @@ void Dictionary::close()
     if (_owned_defs)  { heap_caps_free(_owned_defs);  _owned_defs  = nullptr; }
     _keys = nullptr; _kidx = nullptr; _dref = nullptr; _defs = nullptr;
     _count = 0; _defs_size = 0; _defs_off = 0;
-    _title.clear(); _source.clear();
+    _title.clear(); _tag.clear(); _source.clear();
 }
 
 static uint32_t rd32(const uint8_t* p) { uint32_t v; memcpy(&v, p, 4); return v; }
@@ -27,7 +27,7 @@ static uint32_t rd32(const uint8_t* p) { uint32_t v; memcpy(&v, p, 4); return v;
 // [book:8-parse-header]
 bool Dictionary::parseHeader(const uint8_t* raw, size_t avail, Header& h)
 {
-    if (avail < 64 || memcmp(raw, "PDC1", 4) != 0) return false;
+    if (!raw || avail < 64 || memcmp(raw, "PDC1", 4) != 0) return false;
     h.version    = rd32(raw + 4);
     h.count      = rd32(raw + 8);
     h.flags      = rd32(raw + 12);
@@ -39,13 +39,41 @@ bool Dictionary::parseHeader(const uint8_t* raw, size_t avail, Header& h)
     h.defs_size  = rd32(raw + 36);
     h.title_off  = rd32(raw + 40);
     h.total_size = rd32(raw + 44);
-    if (h.version != 1 || h.count == 0 || h.count > 20000000u) return false;
-    if (h.keys_off != 64 || (h.keys_size & 3) || h.kidx_off != h.keys_off + h.keys_size) return false;
+    if (h.version != 1 || h.flags != 0 || h.count == 0 || h.count > 20000000u) return false;
+    // Use 64-bit arithmetic before comparing offsets: a corrupt size must not wrap.
+    if (h.keys_off != 64 || !h.keys_size || (h.keys_size & 3) || h.kidx_off != 64ull + h.keys_size) return false;
     if (h.dref_off != h.kidx_off + 4ull * h.count || h.defs_off != h.dref_off + 4ull * h.count) return false;
-    if (h.title_off != h.defs_off + h.defs_size || h.total_size < h.title_off + 1) return false;
+    if (h.defs_size < 6 || h.title_off != uint64_t(h.defs_off) + h.defs_size || h.total_size <= h.title_off) return false;
     return true;
 }
 // [/book:8-parse-header]
+
+// build_dict.py stores each key consecutively in sorted order. Validate that layout
+// once before binary search can dereference a key. Definition contents are checked
+// when read, including when they are kept on SD rather than loaded into RAM.
+bool Dictionary::validateIndex(const Header& h, const uint8_t* index)
+{
+    const char* keys = reinterpret_cast<const char*>(index);
+    const uint8_t* kidx = index + (h.kidx_off - h.keys_off);
+    const uint8_t* dref = index + (h.dref_off - h.keys_off);
+    size_t next = 0;
+    const char* previous = nullptr;
+    for (uint32_t i = 0; i < h.count; ++i) {
+        const uint32_t off = rd32(kidx + 4 * size_t(i));
+        if (off != next || off >= h.keys_size) return false;
+        const char* key = keys + off;
+        const char* end = static_cast<const char*>(memchr(key, 0, h.keys_size - off));
+        if (!end || end == key || (previous && strcmp(previous, key) > 0)) return false;
+        const uint32_t ref = rd32(dref + 4 * size_t(i));
+        if ((ref & 3) || ref > h.defs_size - 6) return false;
+        previous = key;
+        next = size_t(end - keys) + 1;
+    }
+    // Only alignment padding may follow the last key.
+    if (h.keys_size - next > 3) return false;
+    while (next < h.keys_size) if (keys[next++] != 0) return false;
+    return true;
+}
 
 std::string Dictionary::readTag(const uint8_t* raw)
 {
@@ -83,13 +111,15 @@ bool Dictionary::openMemory(const uint8_t* base, size_t size, const std::string&
 {
     close();
     Header h;
-    if (!parseHeader(base, size, h) || h.total_size > size) {
+    if (!parseHeader(base, size, h) || h.total_size > size ||
+        !validateIndex(h, base + h.keys_off) ||
+        !memchr(base + h.title_off, 0, h.total_size - h.title_off)) {
         ESP_LOGE(TAG, "%s: bad header", source.c_str());
         return false;
     }
     attach(h, base + h.keys_off, base + h.defs_off);
     _tag = readTag(base);
-    setTitle(reinterpret_cast<const char*>(base + h.title_off), size - h.title_off);
+    setTitle(reinterpret_cast<const char*>(base + h.title_off), h.total_size - h.title_off);
     _source = source;
     ESP_LOGI(TAG, "opened '%s' from %s: %lu entries (memory)", _title.c_str(), source.c_str(), (unsigned long)_count);
     return true;
@@ -111,6 +141,14 @@ bool Dictionary::openFile(const char* path)
         return false;
     }
 
+    if (fseek(fp, 0, SEEK_END) != 0) { fclose(fp); return false; }
+    const long actual_size = ftell(fp);
+    if (actual_size < 0 || uint64_t(actual_size) < h.total_size) {
+        ESP_LOGE(TAG, "%s: truncated image", path);
+        fclose(fp);
+        return false;
+    }
+
     const size_t index_bytes = h.defs_off - h.keys_off;
     uint8_t* idx = static_cast<uint8_t*>(heap_caps_malloc(index_bytes, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT));
     if (!idx) { ESP_LOGE(TAG, "%s: no memory for index (%u bytes)", path, (unsigned)index_bytes); fclose(fp); return false; }
@@ -119,11 +157,23 @@ bool Dictionary::openFile(const char* path)
         heap_caps_free(idx); fclose(fp);
         return false;
     }
+    if (!validateIndex(h, idx)) {
+        ESP_LOGE(TAG, "%s: bad index", path);
+        heap_caps_free(idx); fclose(fp);
+        return false;
+    }
 
     char tbuf[128] = {0};
     if (fseek(fp, h.title_off, SEEK_SET) == 0) {
-        size_t n = fread(tbuf, 1, sizeof(tbuf) - 1, fp);
-        tbuf[n] = 0;
+        size_t n = fread(tbuf, 1, std::min<size_t>(sizeof(tbuf), h.total_size - h.title_off), fp);
+        if (!memchr(tbuf, 0, n)) {
+            ESP_LOGE(TAG, "%s: unterminated or overlong title", path);
+            heap_caps_free(idx); fclose(fp);
+            return false;
+        }
+    } else {
+        heap_caps_free(idx); fclose(fp);
+        return false;
     }
 
     // Small dictionaries keep their definitions in PSRAM; big ones are read on demand
@@ -177,16 +227,15 @@ bool Dictionary::parseRecord(const uint8_t* rec, size_t avail, std::string& head
 {
     if (avail < 4) return false;
     uint32_t len = rd32(rec);
-    if (len > MAX_RECORD || len + 4 > avail) return false;
+    if (len < 2 || len > MAX_RECORD || len > avail - 4) return false;
     const char* p = reinterpret_cast<const char*>(rec + 4);
     size_t hl = strnlen(p, len);
+    if (hl + 1 >= len) return false;
+    const char* d = p + hl + 1;
+    const size_t dl = strnlen(d, len - hl - 1);
+    if (dl + 1 != len - hl - 1) return false;
     head.assign(p, hl);
-    if (hl + 1 < len) {
-        const char* d = p + hl + 1;
-        def.assign(d, strnlen(d, len - hl - 1));
-    } else {
-        def.clear();
-    }
+    def.assign(d, dl);
     return true;
 }
 
@@ -195,15 +244,16 @@ bool Dictionary::entry(uint32_t i, std::string& headword, std::string& definitio
 {
     if (i >= _count) return false;
     const uint32_t off = _dref[i];
+    if (_defs_size < 4 || off > _defs_size - 4) return false;
     if (_defs) {
         if (off >= _defs_size) return false;
         return parseRecord(_defs + off, _defs_size - off, headword, definition);
     }
     if (!_fp) return false;
     uint8_t lenbuf[4];
-    if (fseek(_fp, _defs_off + off, SEEK_SET) != 0 || fread(lenbuf, 1, 4, _fp) != 4) return false;
+    if (fseek(_fp, uint64_t(_defs_off) + off, SEEK_SET) != 0 || fread(lenbuf, 1, 4, _fp) != 4) return false;
     uint32_t len = rd32(lenbuf);
-    if (len > MAX_RECORD) return false;
+    if (len < 2 || len > MAX_RECORD || len > _defs_size - off - 4) return false;
     std::string buf(len + 4, '\0');
     memcpy(&buf[0], lenbuf, 4);
     if (fread(&buf[4], 1, len, _fp) != len) return false;

@@ -65,7 +65,7 @@ def main():
         if strokes: info.append(f'{strokes}画')
         if radical: info.append(f'部首番号 {radical}')
         if grade and int(grade) in GRADE: info.append(GRADE[int(grade)])
-        if jlpt: info.append(f'JLPT N{jlpt}')
+        if jlpt: info.append(f'旧JLPT {jlpt}級（2009年以前）')
         if freq: info.append(f'頻度 {freq}位')
         if info: parts.append('　'.join(info))
         if nanori: parts.append('名乗り: ' + '、'.join(nanori))

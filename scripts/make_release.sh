@@ -1,16 +1,18 @@
 #!/usr/bin/env bash
 # Build everything a reader needs without a development environment:
 #   release/<version>/web/                         browser flashing page (ESP Web Tools) + firmware parts
-#   release/<version>/tab5-pocket-dictionary-<version>-firmware.bin   single image, write at 0x0
-#   release/<version>/tab5-pocket-dictionary-<version>-sd-dictionaries.zip   SD card dictionaries
-# Usage: scripts/make_release.sh v1.0      (run inside an ESP-IDF shell; needs data/sd/dict/*.pdc)
+#   release/<version>/tab5-pocket-dictionary-<version>-firmware.bin   recovery image at 0x0; resets NVS
+#   release/<version>/web/make-dict.html            「辞書を作る」: the reader builds the SD dictionaries in the browser
+# The SD dictionaries (JMdict, KANJIDIC2, Japanese WordNet) and the quiz lists (NGSL, KANJIDIC2) are
+# NOT distributed: the reader downloads the official files and converts them on their own PC.
+# Usage: scripts/make_release.sh v1.0      (run inside an ESP-IDF shell)
 set -euo pipefail
 VER="${1:?version, e.g. v1.0}"
+[[ "$VER" =~ ^v[0-9][A-Za-z0-9._-]*$ ]] || { echo "invalid version: use v1.0 or v1.0-rc1" >&2; exit 1; }
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 OUT="$ROOT/release/$VER"
 EWT_VER=10.4.0
 # everything the page links to sits next to it, so the folder works as is (GitHub Pages or a local server)
-SD_ZIP="tab5-pocket-dictionary-$VER-sd-dictionaries.zip"
 FW_BIN="tab5-pocket-dictionary-$VER-firmware.bin"
 rm -rf "$OUT" && mkdir -p "$OUT/web/firmware"
 
@@ -22,8 +24,15 @@ cp "$ROOT/data/ejdict.pdc" "$OUT/web/firmware/ejdict.pdc"
 cp "$ROOT/third_party/notosansjp/jp_fonts.pfn" "$OUT/web/firmware/jp_fonts.pfn"
 cp "$ROOT/third_party/notosansjp/OFL.txt" "$OUT/web/firmware/OFL.txt"
 cp "$ROOT/THIRD_PARTY_NOTICES.md" "$ROOT/third_party/ipafont/IPA_Font_License_Agreement_v1.0.txt" "$OUT/web/firmware/"
+# licences of the libraries linked into the firmware binary (Apache-2.0 / MIT ask for them with binaries)
+L="$OUT/web/firmware/licences"; mkdir -p "$L"
+cp "$IDF_PATH/LICENSE" "$L/ESP-IDF_LICENSE.txt"
+cp "$IDF_PATH/components/freertos/FreeRTOS-Kernel/LICENSE.md" "$L/FreeRTOS-Kernel_LICENSE.txt"
+for d in "$ROOT"/firmware/managed_components/*/; do cp "$d/LICENSE" "$L/$(basename "$d")_LICENSE.txt"; done
+( cd "$L" && { echo '<!doctype html><meta charset="utf-8"><title>licences</title><h1>ファームウェアに含まれる部品の条文</h1><ul>'
+  for f in *.txt; do echo "<li><a href=\"$f\">$f</a></li>"; done; echo '</ul>'; } > index.html )
 
-echo "== single image (write at 0x0)"
+echo "== recovery image (write at 0x0; resets settings and the NVS wordbook)"
 python -m esptool --chip esp32p4 merge_bin -o "$OUT/tab5-pocket-dictionary-$VER-firmware.bin" \
   --flash_mode dio --flash_size 16MB \
   0x2000 "$B/bootloader/bootloader.bin" 0x10000 "$B/partition_table/partition-table.bin" \
@@ -59,43 +68,13 @@ cp -R "$TMP/package/dist/web" "$OUT/web/esp-web-tools"
 cp "$TMP/package/LICENSE" "$OUT/web/esp-web-tools/LICENSE" 2>/dev/null || true
 rm -rf "$TMP"
 
-echo "== SD card dictionaries"
-ZIPDIR="$OUT/sd"
-mkdir -p "$ZIPDIR/dict"
-cp "$ROOT"/data/sd/dict/*.pdc "$ZIPDIR/dict/"
-cp "$ROOT/THIRD_PARTY_NOTICES.md" "$ZIPDIR/"
-cp "$ROOT/third_party/ipafont/IPA_Font_License_Agreement_v1.0.txt" "$ZIPDIR/"
-cp "$ROOT/third_party/notosansjp/OFL.txt" "$ZIPDIR/"
-cp "$ROOT/third_party/wnja/license.txt" "$ZIPDIR/Japanese_WordNet_License.txt"
-cat > "$ZIPDIR/はじめにお読みください.txt" <<TXT
-Tab5 電子辞書 追加辞書セット（$VER）
-
-microSD カード（32 GB 以下、FAT32 でフォーマット済み）のいちばん上に、
-この中の「dict」フォルダをそのままコピーしてください。
-Tab5 に挿して電源を入れ直すと、次の 4 冊が使えるようになります。
-
-  10_jmdict_waei.pdc     JMdict 和英（ローマ字で引く）
-  20_jmdict_eiwa.pdc     JMdict 英和（逆引き）
-  30_kanjidic2.pdc       KANJIDIC2 漢字辞典
-  40_wnjpn_kokugo.pdc    日本語 WordNet 国語辞典
-
-ライセンス: JMdict / KANJIDIC2 は EDRDG の CC BY-SA 4.0、日本語 WordNet は Japanese WordNet License です（同梱の条文を参照）。
-ファームウェアに入っている日本語フォントは IPA ゴシック由来（IPA フォントライセンス v1.0）と
-Noto Sans JP 由来（SIL Open Font License 1.1）です（同梱の条文を参照）。
-詳しくは THIRD_PARTY_NOTICES.md を見てください。
-TXT
-# Python's zipfile marks non-ASCII names as UTF-8 (Info-ZIP zip on macOS does not), so
-# 「はじめにお読みください.txt」 keeps its name when Windows Explorer extracts the ZIP.
-rm -f "$OUT/$SD_ZIP"
-python -c 'import shutil, sys; shutil.make_archive(sys.argv[1], "zip", sys.argv[2])' "$OUT/${SD_ZIP%.zip}" "$ZIPDIR"
-rm -rf "$ZIPDIR"
-cp "$OUT/$SD_ZIP" "$OUT/web/$SD_ZIP"
-SD_MB=$(( $(stat -f%z "$OUT/tab5-pocket-dictionary-$VER-sd-dictionaries.zip" 2>/dev/null || stat -c%s "$OUT/tab5-pocket-dictionary-$VER-sd-dictionaries.zip") / 1048576 ))
+echo "== 辞書を作る page"
+"$ROOT/scripts/make_dict_page.sh" "$OUT/web" >/dev/null
 
 echo "== page"
-sed -e "s|__VERSION__|$VER|g" -e "s|__SD_ZIP_URL__|$SD_ZIP|g" -e "s|__SD_ZIP_MB__|$SD_MB|g" -e "s|__FW_BIN__|$FW_BIN|g" "$ROOT/web/index.html" > "$OUT/web/index.html"
+sed -e "s|__VERSION__|$VER|g" -e "s|__FW_BIN__|$FW_BIN|g" "$ROOT/web/index.html" > "$OUT/web/index.html"
 
 echo "== checksums"
-( cd "$OUT" && shasum -a 256 *.bin *.zip > SHA256SUMS.txt && cat SHA256SUMS.txt )
+( cd "$OUT" && shasum -a 256 *.bin > SHA256SUMS.txt && cat SHA256SUMS.txt )
 cp "$OUT/SHA256SUMS.txt" "$OUT/web/"   # next to the downloads on the page
 du -sh "$OUT"/* "$OUT/web"

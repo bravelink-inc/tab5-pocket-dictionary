@@ -1,0 +1,195 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tab5 電子辞書 辞書を作る</title>
+<link rel="icon" href="data:,">
+<style>
+  :root { --navy:#1F3B5C; --blue:#2F6FD6; --ink:#1B1F24; --muted:#5A6573; --line:#D5DAE1; --bg:#F6F8FB; --ok:#2E7D4F; --ng:#B3261E; }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family: "Hiragino Sans","Yu Gothic UI","Meiryo",sans-serif; color:var(--ink); background:var(--bg); line-height:1.7; }
+  header { background:var(--navy); color:#fff; padding:28px 20px; }
+  header h1 { margin:0; font-size:1.5rem; }
+  header p { margin:6px 0 0; opacity:.85; }
+  header a { color:#fff; }
+  main { max-width:760px; margin:0 auto; padding:24px 20px 60px; }
+  section { background:#fff; border:1px solid var(--line); border-radius:12px; padding:20px 22px; margin:18px 0; }
+  h2 { font-size:1.15rem; margin:0 0 10px; color:var(--navy); }
+  ol { padding-left:1.3em; margin:0; }
+  li { margin:6px 0; }
+  .note { color:var(--muted); font-size:.92rem; }
+  .warn { background:#FFF4E5; border-color:#F2C089; }
+  code { background:#EEF1F5; padding:1px 5px; border-radius:4px; }
+  table { border-collapse:collapse; width:100%; font-size:.95rem; }
+  td, th { border:1px solid var(--line); padding:6px 8px; text-align:left; vertical-align:top; }
+  button { font-size:1.05rem; padding:12px 26px; border-radius:10px; border:0; background:var(--blue); color:#fff; cursor:pointer; }
+  button:disabled { background:#A9B4C2; cursor:default; }
+  button.sub { background:#fff; color:var(--blue); border:1px solid var(--blue); }
+  #drop { border:2px dashed var(--line); border-radius:12px; padding:22px; text-align:center; color:var(--muted); }
+  #drop.over { border-color:var(--blue); background:#EEF4FF; }
+  .ok { color:var(--ok); font-weight:bold; }
+  .ng { color:var(--muted); }
+  #log { font-family: ui-monospace, Menlo, Consolas, monospace; font-size:.82rem; background:#F1F3F6; border-radius:8px; padding:10px; max-height:220px; overflow:auto; white-space:pre-wrap; display:none; }
+  progress { width:100%; height:14px; }
+  #error { display:none; color:var(--ng); }
+</style>
+</head>
+<body>
+<header>
+  <h1>M5Stack Tab5 電子辞書　辞書を作る</h1>
+  <p>和英・英和（逆引き）・漢字・国語の 4 冊と、テストのデータを、このパソコンの中で作って microSD カードに入れます。<a href="index.html">書き込みページに戻る</a></p>
+</header>
+<main>
+  <section class="warn">
+    <h2>はじめに</h2>
+    <p>パソコンの <strong>Google Chrome</strong> か <strong>Microsoft Edge</strong> で開いてください。辞書の元になるデータは、それぞれの公式サイトからダウンロードし、このページがあなたのパソコンの中だけで変換します。データはどこにも送信しません。</p>
+    <p class="note">変換には 1〜3 分ほどかかり、パソコンのメモリを 1 GB ほど使います。ほかのタブやアプリを閉じておくと安心です。</p>
+  </section>
+
+  <section>
+    <h2>1. 元のデータをダウンロードする</h2>
+    <p>次の 5 つのリンクを順に押し、ファイルをダウンロードします（「ダウンロード」フォルダに入ります）。名前を変えたり、展開したりしなくてかまいません。</p>
+    <table>
+      <tr><th>ファイル</th><th>中身</th><th>配布元とライセンス</th></tr>
+      <tr><td><a href="https://www.edrdg.org/pub/Nihongo/JMdict_e.gz">JMdict_e.gz</a>（約 10 MB）</td><td>和英・英和（逆引き）の元</td><td rowspan="2">EDRDG（<a href="https://www.edrdg.org/edrdg/licence.html">ライセンス</a>、CC BY-SA 4.0）</td></tr>
+      <tr><td><a href="https://www.edrdg.org/kanjidic/kanjidic2.xml.gz">kanjidic2.xml.gz</a>（約 1.5 MB）</td><td>漢字辞典と漢字の読みテストの元</td></tr>
+      <tr><td><a href="https://github.com/bond-lab/wnja/releases/download/v1.1/wnjpn-ok.tab.gz">wnjpn-ok.tab.gz</a>（約 1 MB）</td><td rowspan="2">国語辞典の元</td><td rowspan="2">日本語 WordNet 1.1（<a href="https://github.com/bond-lab/wnja/blob/master/LICENSE">ライセンス</a>）</td></tr>
+      <tr><td><a href="https://github.com/bond-lab/wnja/releases/download/v1.1/wnjpn-def.tab.gz">wnjpn-def.tab.gz</a>（約 8 MB）</td></tr>
+      <tr><td><a href="https://www.newgeneralservicelist.com/s/NGSL_12_stats.csv">NGSL の表（.csv）</a>（約 60 KB）</td><td>英単語テスト（基礎・標準・発展）の元</td><td>NGSL 1.2（<a href="https://www.newgeneralservicelist.com/">配布元</a>、CC BY-SA 4.0）</td></tr>
+    </table>
+    <p class="note">NGSL の表が画面に文字で表示されたときは、Ctrl+S（Mac は ⌘S）で保存してください。</p>
+  </section>
+
+  <section>
+    <h2>2. ダウンロードしたファイルを入れる</h2>
+    <div id="drop">
+      <p>5 つのファイルを、ここにドラッグしてください</p>
+      <p><input type="file" id="pick" multiple accept=".gz,.csv,.xml,.tab"></p>
+    </div>
+    <ul id="checklist"></ul>
+  </section>
+
+  <section>
+    <h2>3. 辞書を作る</h2>
+    <p><button id="build" disabled>辞書を作る</button></p>
+    <progress id="progress" value="0" max="1" hidden></progress>
+    <p id="status" class="note">5 つのファイルがそろうと押せます。</p>
+    <p id="error"></p>
+    <div id="log"></div>
+  </section>
+
+  <section>
+    <h2>4. microSD カードに入れる</h2>
+    <ol>
+      <li>microSD カード（32 GB 以下、FAT32）をパソコンに挿します。</li>
+      <li>「SD カードに書き込む」を押し、カードの中の <code>dict</code> フォルダを選びます。<code>dict</code> フォルダが無いときは、選ぶ画面で「新しいフォルダ」を押して <code>dict</code> という名前で作り、それを選びます。「ファイルの編集を許可しますか」と聞かれたら許可します。</li>
+      <li>書き込みが終わったら、カードを Tab5 に挿して電源を入れ直します。辞書が 5 冊になり、テストの 2〜4 と 6〜9 が使えるようになります。</li>
+    </ol>
+    <p><button id="write" disabled>SD カードに書き込む</button>　<button id="zip" class="sub" disabled>ZIP で保存する</button></p>
+    <p id="writestatus" class="note"></p>
+    <p class="note">「SD カードに書き込む」が使えないブラウザでは、「ZIP で保存する」で保存し、展開してできた <code>dict</code> フォルダを、カードのいちばん上にコピーしてください。</p>
+  </section>
+
+  <section>
+    <h2>出典とライセンス</h2>
+    <p>このページは辞書のデータを配布していません。作った辞書とテストのデータには、<code>dict</code> フォルダの「出典とライセンス.txt」に書いてあるライセンスが付きます（JMdict・KANJIDIC2・NGSL は CC BY-SA 4.0、国語辞典は日本語 WordNet と WordNet 3.0 の条件も）。人に渡すときは、このファイルも一緒に渡してください。</p>
+    <p class="note">This page uses the JMdict/EDICT and KANJIDIC dictionary files. These files are the property of the <a href="https://www.edrdg.org/">Electronic Dictionary Research and Development Group</a>, and are used in conformance with the Group's <a href="https://www.edrdg.org/edrdg/licence.html">licence</a>.</p>
+    <p class="note">このページで動かしている部品: 変換ツール（<a href="https://github.com/bravelink-inc/tab5-pocket-dictionary">tab5-pocket-dictionary</a> の tools/、MIT）、<a href="https://pyodide.org/">Pyodide</a>（MPL-2.0）、pykakasi（GPL-3.0、<a href="https://codeberg.org/miurahr/pykakasi">ソース</a>）、jaconv（MIT）、Deprecated（MIT）、wrapt（BSD-2-Clause）。条文は <a href="licences/">licences</a> フォルダにあります。</p>
+  </section>
+</main>
+<script>
+"use strict";
+const KINDS = [
+  { kind: "jmdict",   label: "JMdict_e.gz",      re: /jmdict_e/i },
+  { kind: "kanjidic", label: "kanjidic2.xml.gz", re: /kanjidic2/i },
+  { kind: "wnok",     label: "wnjpn-ok.tab.gz",  re: /wnjpn-ok/i },
+  { kind: "wndef",    label: "wnjpn-def.tab.gz", re: /wnjpn-def/i },
+  { kind: "ngsl",     label: "NGSL の表（.csv）", re: /ngsl.*\.csv$/i },
+];
+const chosen = {};
+let outputs = null;
+const $ = (id) => document.getElementById(id);
+
+function render() {
+  $("checklist").innerHTML = KINDS.map((k) => chosen[k.kind]
+    ? `<li class="ok">✓ ${k.label}（${chosen[k.kind].name}）</li>`
+    : `<li class="ng">□ ${k.label}</li>`).join("");
+  const all = KINDS.every((k) => chosen[k.kind]);
+  $("build").disabled = !all;
+  if (all) $("status").textContent = "そろいました。「辞書を作る」を押してください。";
+}
+function addFiles(list) {
+  for (const f of list) {
+    const k = KINDS.find((k) => k.re.test(f.name));
+    if (k) chosen[k.kind] = f;
+  }
+  render();
+}
+$("pick").addEventListener("change", (e) => addFiles(e.target.files));
+const drop = $("drop");
+drop.addEventListener("dragover", (e) => { e.preventDefault(); drop.classList.add("over"); });
+drop.addEventListener("dragleave", () => drop.classList.remove("over"));
+drop.addEventListener("drop", (e) => { e.preventDefault(); drop.classList.remove("over"); addFiles(e.dataTransfer.files); });
+
+const worker = new Worker("make-dict-worker.js");
+function log(text) { const l = $("log"); l.style.display = "block"; l.textContent += text + "\n"; l.scrollTop = l.scrollHeight; }
+worker.onmessage = (e) => {
+  const m = e.data;
+  if (m.type === "log") log(m.text);
+  else if (m.type === "step") {
+    $("progress").hidden = false; $("progress").max = m.total; $("progress").value = m.index;
+    $("status").textContent = `${m.index + 1} / ${m.total}　${m.text}…`;
+    log("== " + m.text);
+  } else if (m.type === "done") {
+    outputs = m.files;
+    $("progress").value = $("progress").max;
+    const mb = outputs.reduce((s, f) => s + f.buf.byteLength, 0) / 1048576;
+    $("status").textContent = `できました（${outputs.length} ファイル、${mb.toFixed(0)} MB）。次は 4. で microSD カードに入れます。`;
+    $("write").disabled = !window.showDirectoryPicker;
+    $("zip").disabled = false;
+  } else if (m.type === "zip") {
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(new Blob([m.buf], { type: "application/zip" }));
+    a.download = "tab5-dict.zip"; a.click();
+    $("writestatus").textContent = "ZIP を保存しました。展開して、dict フォルダをカードのいちばん上にコピーしてください。";
+  } else if (m.type === "error") {
+    $("error").style.display = "block";
+    $("error").textContent = "うまく作れませんでした: " + m.text + "（ほかのタブを閉じてから、ページを再読み込みしてやり直してください）";
+    $("build").disabled = false;
+  }
+};
+$("build").addEventListener("click", async () => {
+  $("build").disabled = true; $("error").style.display = "none"; $("log").textContent = "";
+  $("status").textContent = "準備しています…";
+  const files = {};
+  for (const k of KINDS) files[k.kind] = await chosen[k.kind].arrayBuffer();
+  worker.postMessage({ type: "build", files }, Object.values(files));
+});
+$("zip").addEventListener("click", () => worker.postMessage({ type: "zip" }));
+$("write").addEventListener("click", async () => {
+  let dir;
+  try {
+    const picked = await window.showDirectoryPicker({ id: "tab5-sd", mode: "readwrite" });
+    dir = picked.name.toLowerCase() === "dict" ? picked : await picked.getDirectoryHandle("dict", { create: true });
+  } catch (err) {
+    if (err.name !== "AbortError") $("writestatus").textContent = "フォルダを開けませんでした: " + err.message;
+    return;
+  }
+  $("write").disabled = true;
+  try {
+    for (const [i, f] of outputs.entries()) {
+      $("writestatus").textContent = `書き込んでいます（${i + 1} / ${outputs.length}）${f.name}`;
+      const w = await (await dir.getFileHandle(f.name, { create: true })).createWritable();
+      await w.write(f.buf); await w.close();
+    }
+    $("writestatus").textContent = "書き込みました。カードを取り出して Tab5 に挿し、電源を入れ直してください。";
+  } catch (err) {
+    $("writestatus").textContent = "書き込めませんでした: " + err.message;
+  }
+  $("write").disabled = false;
+});
+render();
+</script>
+</body>
+</html>

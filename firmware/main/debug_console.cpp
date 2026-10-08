@@ -51,6 +51,7 @@ void injectChar(char c)
         case 0x12: return inject(0x15, 0x01);   // Ctrl+R
         case 0x14: return inject(0x17, 0x01);   // Ctrl+T (quiz)
         case 0x11: return inject(0x14, 0x01);   // Ctrl+Q (power off)
+        case 0x0C: return inject(0x0F, 0x01);   // Ctrl+L (sources and licences)
         default: break;
     }
 }
