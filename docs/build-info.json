@@ -1,0 +1,43 @@
+{
+  "version": "v1.0-rc1",
+  "source_repository": "https://github.com/bravelink-inc/tab5-pocket-dictionary",
+  "source_commit": "bcf9e5669570ecfc8b129d4fc36165179e62e207",
+  "project_version": "v0.1-1-gbcf9e56",
+  "sdk": "ESP-IDF 5.5.5",
+  "m5unified": "0.2.23",
+  "m5gfx": "0.2.30",
+  "parts": [
+    {
+      "path": "firmware/bootloader.bin",
+      "offset": 8192,
+      "size": 24128,
+      "sha256": "44cab525bc47bb041d07656fa8fa09e35cdc264c57f2580351a3ab8728f65510"
+    },
+    {
+      "path": "firmware/partition-table.bin",
+      "offset": 65536,
+      "size": 3072,
+      "sha256": "281d70fb2a8510fcbabb13c3f2778b9ce8f03b54676b39123b02dfa1fe7e3a1b"
+    },
+    {
+      "path": "firmware/pocketdictionary.bin",
+      "offset": 131072,
+      "size": 2119936,
+      "sha256": "ab258c6b75a086eae0014a94d63fcca529280a9ca5740829663bb9be3c2dce84"
+    },
+    {
+      "path": "firmware/ejdict.pdc",
+      "offset": 4194304,
+      "size": 5459288,
+      "sha256": "524aadd659f0ffb851fb165a78ba717c2a5ae078e1547ef9ba1974e336b47fd2"
+    },
+    {
+      "path": "firmware/jp_fonts.pfn",
+      "offset": 11010048,
+      "size": 4836156,
+      "sha256": "aef2b081d00584991640b74291dba106382c28d112cba68b210179d902544d07"
+    }
+  ],
+  "recovery_resets_nvs": true,
+  "device_tested": false
+}
