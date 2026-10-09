@@ -63,7 +63,7 @@ JSON
 
 echo "== vendor ESP Web Tools $EWT_VER (no CDN at run time)"
 TMP=$(mktemp -d)
-curl -sL "https://registry.npmjs.org/esp-web-tools/-/esp-web-tools-$EWT_VER.tgz" | tar xz -C "$TMP"
+curl -sfL "https://registry.npmjs.org/esp-web-tools/-/esp-web-tools-$EWT_VER.tgz" | tar xz -C "$TMP"
 cp -R "$TMP/package/dist/web" "$OUT/web/esp-web-tools"
 cp "$TMP/package/LICENSE" "$OUT/web/esp-web-tools/LICENSE" 2>/dev/null || true
 rm -rf "$TMP"
@@ -77,4 +77,5 @@ sed -e "s|__VERSION__|$VER|g" -e "s|__FW_BIN__|$FW_BIN|g" "$ROOT/web/index.html"
 echo "== checksums"
 ( cd "$OUT" && shasum -a 256 *.bin > SHA256SUMS.txt && cat SHA256SUMS.txt )
 cp "$OUT/SHA256SUMS.txt" "$OUT/web/"   # next to the downloads on the page
+python3 "$ROOT/tools/build_info.py" "$OUT/web"
 du -sh "$OUT"/* "$OUT/web"

@@ -12,6 +12,7 @@ static sdmmc_card_t* s_card = nullptr;
 bool sdcard_mounted() { return s_card != nullptr; }
 
 // [book:11-sd-mount]
+// [book:11-sd-mount-start]
 bool sdcard_mount()
 {
     if (s_card) return true;
@@ -30,6 +31,7 @@ bool sdcard_mount()
     sdmmc_slot_config_t slot = SDMMC_SLOT_CONFIG_DEFAULT();
     slot.clk = static_cast<gpio_num_t>(cfg::SD_CLK);
     slot.cmd = static_cast<gpio_num_t>(cfg::SD_CMD);
+// [/book:11-sd-mount-start]
     slot.d0  = static_cast<gpio_num_t>(cfg::SD_D0);
     slot.d1  = static_cast<gpio_num_t>(cfg::SD_D1);
     slot.d2  = static_cast<gpio_num_t>(cfg::SD_D2);
@@ -43,6 +45,7 @@ bool sdcard_mount()
     mount.format_if_mount_failed = false;
     mount.max_files = 12;
     mount.allocation_unit_size = 16 * 1024;
+// [book:11-sd-mount-end]
 
     err = esp_vfs_fat_sdmmc_mount(cfg::SD_MOUNT_POINT, &host, &slot, &mount, &s_card);
     if (err != ESP_OK) {
@@ -55,4 +58,5 @@ bool sdcard_mount()
              ((uint64_t)s_card->csd.capacity * s_card->csd.sector_size) >> 20);
     return true;
 }
+// [/book:11-sd-mount-end]
 // [/book:11-sd-mount]

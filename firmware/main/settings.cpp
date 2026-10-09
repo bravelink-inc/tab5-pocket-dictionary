@@ -9,10 +9,8 @@ static const char* NS = "pdict";
 void settings_init()
 {
     esp_err_t err = nvs_flash_init();
-    if (err == ESP_ERR_NVS_NO_FREE_PAGES || err == ESP_ERR_NVS_NEW_VERSION_FOUND) {
-        nvs_flash_erase();
-        err = nvs_flash_init();
-    }
+    // Do not erase the user's wordbook/rotation automatically on a failed init.
+    // Recovery that resets NVS is an explicit, documented operation.
     if (err != ESP_OK) ESP_LOGW(TAG, "nvs init failed: %s", esp_err_to_name(err));
 }
 

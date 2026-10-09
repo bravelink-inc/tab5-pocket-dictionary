@@ -4,6 +4,7 @@
 // Unified key events from the Tab5 Keyboard (I2C) and USB HID keyboards.
 // keycode/modifier follow the USB HID keyboard usage page (0x07).
 
+// [book:9-keyboard-interface]
 enum class KeySource : uint8_t { I2C = 0, USB = 1 };
 
 struct KeyEvent {
@@ -33,3 +34,4 @@ void startUSB();   // USB host + HID class driver
 bool i2cConnected();
 bool usbConnected();
 }
+// [/book:9-keyboard-interface]

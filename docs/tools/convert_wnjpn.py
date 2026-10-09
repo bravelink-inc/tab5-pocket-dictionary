@@ -25,10 +25,11 @@ def main():
     ap.add_argument('-o', '--output', required=True)
     a = ap.parse_args()
 
-    readings = {}
-    for line in open(a.readings, encoding='utf-8'):
-        k, _, v = line.rstrip('\n').partition('\t')
-        if k and v: readings[k] = v
+    readings = defaultdict(list)
+    with open(a.readings, encoding='utf-8') as source:
+        for line in source:
+            k, _, v = line.rstrip('\n').partition('\t')
+            if k and v and v not in readings[k]: readings[k].append(v)
 
     defs = defaultdict(list)
     for line in gzip.open(a.def_tab, 'rt', encoding='utf-8'):
@@ -53,21 +54,22 @@ def main():
     n = skipped = 0
     for word in sorted(word_syn, key=lambda w: (-len(word_syn[w]), w)):
         if is_kana_only(word):
-            reading = word
+            candidates = [word]
         elif word in readings:
-            reading = readings[word]
+            candidates = readings[word]
         else:
-            reading = ''.join(x['hira'] for x in kks.convert(word))
+            candidates = [''.join(x['hira'] for x in kks.convert(word))]
         keys = []
-        for k in romaji_keys(reading):
-            if k and k not in keys: keys.append(k)
+        for reading in candidates:
+            for k in romaji_keys(reading):
+                if k and k not in keys: keys.append(k)
         ascii_key = unicodedata.normalize('NFKC', word).lower()
         if ascii_key.isascii() and ascii_key.isalnum() and ascii_key not in keys:
             keys.append(ascii_key)
         if not keys:
             skipped += 1
             continue
-        hw = word if is_kana_only(word) or reading == word else f'{word}【{reading}】'
+        hw = word if candidates == [word] else word + '【' + '・'.join(candidates) + '】'
         parts = []
         for syn in word_syn[word]:
             pos = POS.get(syn[-1], '')

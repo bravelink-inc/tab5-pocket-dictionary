@@ -1,6 +1,6 @@
 {
   "name": "Tab5 電子辞書",
-  "version": "v1.0-rc1",
+  "version": "v1.0-rc2",
   "new_install_prompt_erase": false,
   "new_install_improv_wait_time": 0,
   "builds": [

@@ -55,6 +55,12 @@ def align4(buf: bytearray) -> None:
         buf.append(0)
 
 
+def split_spellings(head: str):
+    # Split compact letter aliases as well as comma-space lists, but retain 1,000.
+    return [s.strip() for s in re.split(r",\s+|(?<=[^\W\d_]),(?=[^\W\d_])", head)
+            if s.strip()]
+
+
 # [book:7-parse-line]
 def parse_line(line: str, headword_sep: str = ""):
     line = line.rstrip("\r\n")
@@ -65,10 +71,8 @@ def parse_line(line: str, headword_sep: str = ""):
     definition = definition.strip().replace("\t", " ")
     if not head or not definition:
         return None
-    # "a, b, c" -> several spellings of the same entry. A comma without a following
-    # space (e.g. "1,000") is kept as part of the headword.
-    spellings = [h.strip() for h in head.split(", ")] if ", " in head else [head]
-    spellings = [s for s in spellings if s]
+    # Both "color,colour" and "color, colour" share one record; 1,000 stays intact.
+    spellings = split_spellings(head)
     # With --headword-sep the first field only holds search keys and the definition
     # starts with "display headword<sep>".
     if headword_sep and headword_sep in definition:
@@ -126,6 +130,7 @@ def main() -> int:
     keys.sort(key=lambda kr: (kr[0], kr[1]))
 
 # [book:7-write-layout]
+# [book:7-write-layout-start]
     # --- defs blob -----------------------------------------------------------
     defs = bytearray()
     rec_off = []
@@ -144,6 +149,7 @@ def main() -> int:
         kblob += nk + b"\0"
         dref.append(rec_off[rid])
     align4(kblob)
+# [/book:7-write-layout-start]
 
     n = len(keys)
     title = args.title.encode("utf-8") + b"\0"
@@ -157,6 +163,7 @@ def main() -> int:
     total += (-total) % 4
 
     header = struct.pack(HEADER_FMT, MAGIC, VERSION, n, 0,
+# [book:7-write-layout-end]
                          keys_off, len(kblob), kidx_off, dref_off,
                          defs_off, len(defs), title_off, total, tag.ljust(16, b"\0"))
 
@@ -169,6 +176,7 @@ def main() -> int:
         out.write(defs)
         out.write(title)
         out.write(b"\0" * ((-total_written(out)) % 4))
+# [/book:7-write-layout-end]
 
 # [/book:7-write-layout]
     print(f"{args.output}: {n} keys, {len(records)} records, {total} bytes"

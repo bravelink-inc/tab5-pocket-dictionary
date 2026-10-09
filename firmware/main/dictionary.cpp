@@ -127,6 +127,7 @@ bool Dictionary::openMemory(const uint8_t* base, size_t size, const std::string&
 // [/book:8-open-memory]
 
 // [book:11-open-file]
+// [book:11-open-file-start]
 bool Dictionary::openFile(const char* path)
 {
     close();
@@ -145,6 +146,7 @@ bool Dictionary::openFile(const char* path)
     const long actual_size = ftell(fp);
     if (actual_size < 0 || uint64_t(actual_size) < h.total_size) {
         ESP_LOGE(TAG, "%s: truncated image", path);
+// [/book:11-open-file-start]
         fclose(fp);
         return false;
     }
@@ -192,6 +194,7 @@ bool Dictionary::openFile(const char* path)
     attach(h, idx, defs);
     _owned_index = idx;
     _owned_defs = defs;
+// [book:11-open-file-end]
     _tag = readTag(raw);
     setTitle(tbuf, sizeof(tbuf));
     _source = path;
@@ -204,6 +207,7 @@ bool Dictionary::openFile(const char* path)
              (unsigned long)_count, (unsigned)(index_bytes >> 10), defs ? "psram" : "lazy");
     return true;
 }
+// [/book:11-open-file-end]
 // [/book:11-open-file]
 
 // [book:8-lower-bound]

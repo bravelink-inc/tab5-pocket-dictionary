@@ -11,6 +11,7 @@ idf_component_register(
         "settings.cpp"
         "debug_console.cpp"
         "wordbook.cpp"
+        "file_replace.cpp"
         "font_store.cpp"
     INCLUDE_DIRS "."
     EMBED_TXTFILES "../../third_party/ejdict/frequency/2000.txt"

@@ -10,7 +10,7 @@ project(pocketdictionary)
 set(PD_ROOT      "${CMAKE_CURRENT_LIST_DIR}/..")
 set(PD_DICT_BIN  "${PD_ROOT}/data/ejdict.pdc")
 set(PD_DICT_TOOL "${PD_ROOT}/tools/build_dict.py")
-file(GLOB PD_EJDICT_SRC "${PD_ROOT}/third_party/ejdict/src/*.txt")
+file(GLOB PD_EJDICT_SRC CONFIGURE_DEPENDS "${PD_ROOT}/third_party/ejdict/src/*.txt")
 
 if(NOT PYTHON)
     set(PYTHON python3)   # idf.py passes -DPYTHON=<its venv python>; "python3" does not exist on Windows
@@ -23,6 +23,16 @@ if(NOT EXISTS "${PD_DICT_BIN}" AND PD_EJDICT_SRC)
     if(NOT pd_rc EQUAL 0)
         message(WARNING "build_dict.py failed (rc=${pd_rc}); the dict partition will not be flashed")
     endif()
+endif()
+
+if(PD_EJDICT_SRC)
+    add_custom_command(OUTPUT "${PD_DICT_BIN}"
+        COMMAND "${PYTHON}" "${PD_DICT_TOOL}" --title "EJDict-hand 英和"
+                -o "${PD_DICT_BIN}" ${PD_EJDICT_SRC}
+        DEPENDS "${PD_DICT_TOOL}" ${PD_EJDICT_SRC}
+        VERBATIM)
+    add_custom_target(pd_builtin_dictionary ALL DEPENDS "${PD_DICT_BIN}")
+    add_dependencies(flash pd_builtin_dictionary)
 endif()
 
 if(EXISTS "${PD_DICT_BIN}")

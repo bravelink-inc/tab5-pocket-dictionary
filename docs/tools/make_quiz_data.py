@@ -16,6 +16,7 @@ Usage: make_quiz_data.py --ngsl NGSL_12_stats.csv --kanjidic kanjidic2.xml.gz [-
 """
 import argparse, csv, glob, gzip, os, sys
 import xml.etree.ElementTree as ET
+from build_dict import normalize_key, split_spellings
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
@@ -23,10 +24,11 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 def ejdict_words(src):
     words = set()
     for p in glob.glob(os.path.join(src, "*.txt")):
-        for line in open(p, encoding="utf-8", errors="replace"):
-            head = line.split("\t", 1)[0]
-            for w in head.split(", "):
-                words.add(w.strip().lower())
+        with open(p, encoding="utf-8", errors="replace") as source:
+            for line in source:
+                head = line.split("\t", 1)[0]
+                for w in split_spellings(head):
+                    words.add(normalize_key(w))
     return words
 
 

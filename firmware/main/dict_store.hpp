@@ -10,4 +10,10 @@ size_t loadAll(std::vector<std::unique_ptr<Dictionary>>& out);
 // Request a reload (e.g. after files were uploaded); the UI task performs it.
 void requestReload();
 bool reloadPending();
+// The console waits for the UI to close dictionary files before replacing them.
+void requestTransferPause();
+bool transferPauseRequested();
+void acknowledgeTransferPause();
+bool transferPaused();
+void endTransferPause();
 }
