@@ -14,6 +14,5 @@ idf_component_register(
         "file_replace.cpp"
         "font_store.cpp"
     INCLUDE_DIRS "."
-    EMBED_TXTFILES "../../third_party/ejdict/frequency/2000.txt"
     REQUIRES nvs_flash mbedtls vfs esp_driver_usb_serial_jtag usb fatfs sdmmc esp_partition esp_driver_gpio esp_driver_sdmmc
 )

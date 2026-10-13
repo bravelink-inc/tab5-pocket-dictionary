@@ -19,7 +19,6 @@ from unittest.mock import patch
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "tools"))
 from build_dict import normalize_key, parse_line
-from make_quiz_data import ejdict_words
 
 
 class DictionaryConversion(unittest.TestCase):
@@ -27,9 +26,6 @@ class DictionaryConversion(unittest.TestCase):
         for head in ("organize,organise", "organize, organise"):
             self.assertEqual(parse_line(head + "\tmeaning")[1], ["organize", "organise"])
         self.assertEqual(parse_line("1,000\tmeaning")[1], ["1,000"])
-        with tempfile.TemporaryDirectory() as temp:
-            Path(temp, "test.txt").write_text("Organize,organise\tmeaning\n1,000\tmeaning\n")
-            self.assertEqual(ejdict_words(temp), {"organize", "organise", "1,000"})
         self.assertEqual(normalize_key(" ＣＯＬＯＵＲ "), "colour")
 
     def test_jmdict_reading_writing_and_sense_restrictions(self):
@@ -100,7 +96,7 @@ class Storage(unittest.TestCase):
     def tearDownClass(cls): cls.temp.cleanup()
 
     def test_storage_failures_migration_limits_and_recovery(self):
-        for mode in ("empty", "legacy", "failure", "short-write", "nvs", "replace", "oversize", "init"):
+        for mode in ("empty", "legacy", "two-column", "nvs-two-column", "failure", "short-write", "nvs", "replace", "oversize", "init"):
             with self.subTest(mode=mode), tempfile.TemporaryDirectory() as temp:
                 path = str(Path(temp) / "wordbook.txt")
                 subprocess.run([str(self.binary), path, mode], check=True, env={
@@ -180,39 +176,6 @@ int main() {
 '''
         with tempfile.TemporaryDirectory() as temp:
             cpp, binary = Path(temp, 'put.cpp'), Path(temp, 'put')
-            cpp.write_text(harness + body + checks)
-            subprocess.run(['c++', '-std=c++17', str(cpp), '-o', str(binary)], check=True)
-            subprocess.run([str(binary)], check=True)
-
-
-class QuizPool(unittest.TestCase):
-    def test_only_resolvable_english_keys_enable_wordbook_quiz(self):
-        source = (ROOT / 'firmware/main/ui.cpp').read_text()
-        body = source[source.index('std::vector<std::string> g_wordbookPool;'):source.index('bool buildPool()')]
-        harness = r'''
-#include <algorithm>
-#include <cassert>
-#include <string>
-#include <vector>
-struct Entry { std::string word, quizKey; };
-namespace wordbook { std::vector<Entry> data; const auto& entries() { return data; } }
-int* quizDict() { return nullptr; }
-bool lookupExact(int*, const std::string& key, std::string&, std::string& def) {
-    def = "definition"; return key == "organise" || key == "apple" || key == "beta" || key == "color";
-}
-'''
-        checks = r'''
-int main() {
-    wordbook::data = {{"心", ""}, {"東京", ""}, {"日本語", ""}, {"国語", ""}};
-    refreshWordbookPool(); assert(g_wordbookPool.empty());
-    wordbook::data = {{"organize,organise", "organise"}, {"organise", "organise"}, {"missing", "missing"}};
-    refreshWordbookPool(); assert(g_wordbookPool.size() == 1 && g_wordbookPool[0] == "organise");
-    wordbook::data.insert(wordbook::data.end(), {{"apple", "apple"}, {"beta", "beta"}, {"color,colour", "color"}});
-    refreshWordbookPool(); assert(g_wordbookPool.size() == 4);
-}
-'''
-        with tempfile.TemporaryDirectory() as temp:
-            cpp, binary = Path(temp, 'pool.cpp'), Path(temp, 'pool')
             cpp.write_text(harness + body + checks)
             subprocess.run(['c++', '-std=c++17', str(cpp), '-o', str(binary)], check=True)
             subprocess.run([str(binary)], check=True)

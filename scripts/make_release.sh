@@ -3,7 +3,7 @@
 #   release/<version>/web/                         browser flashing page (ESP Web Tools) + firmware parts
 #   release/<version>/tab5-pocket-dictionary-<version>-firmware.bin   recovery image at 0x0; resets NVS
 #   release/<version>/web/make-dict.html            「辞書を作る」: the reader builds the SD dictionaries in the browser
-# The SD dictionaries (JMdict, KANJIDIC2, Japanese WordNet) and the quiz lists (NGSL, KANJIDIC2) are
+# The SD dictionaries (JMdict, KANJIDIC2, Japanese WordNet) are
 # NOT distributed: the reader downloads the official files and converts them on their own PC.
 # Usage: scripts/make_release.sh v1.0      (run inside an ESP-IDF shell)
 set -euo pipefail

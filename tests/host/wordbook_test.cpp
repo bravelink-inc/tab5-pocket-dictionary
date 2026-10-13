@@ -52,21 +52,39 @@ int main(int argc, char** argv) {
     } else if (mode == "legacy") {
         write(target, "Color,colour\r\n心【こころ】\nColor,colour\n");
         wordbook::load(); assert(wordbook::entries().size() == 2);
-        assert(wordbook::entries()[0].quizKey == "color" && wordbook::entries()[1].quizKey.empty());
-        assert(wordbook::add("organize,organise", "organise"));
-        wordbook::load(); assert(wordbook::containsQuizKey("organise"));
-        assert(wordbook::toggle("organise", "organise") == false);
+        assert(wordbook::contains("Color,colour") && wordbook::contains("心【こころ】"));
+        assert(wordbook::add("organize,organise"));
+        wordbook::load(); assert(wordbook::contains("organize,organise"));
+        assert(wordbook::toggle("organize,organise") == false);
         assert(!wordbook::contains("organize,organise"));
+    } else if (mode == "two-column") {
+        const std::string old = "Color,colour\tcolour\r\n心【こころ】\t\nColor,colour\tcolor\n";
+        write(target, old); wordbook::load();
+        assert(wordbook::entries().size() == 2);
+        assert(read(target) == old); // Loading alone never rewrites the user's file.
+        assert(wordbook::contains("Color,colour") && wordbook::contains("心【こころ】"));
+        assert(wordbook::add("東京"));
+        assert(read(target) == "Color,colour\n心【こころ】\n東京\n");
+        wordbook::load(); assert(wordbook::entries().size() == 3);
+        assert(!wordbook::toggle("Color,colour"));
+        assert(wordbook::contains("心【こころ】") && wordbook::contains("東京"));
+    } else if (mode == "nvs-two-column") {
+        mounted = false; durable = "apple\tapple\n心\t\n";
+        wordbook::load(); assert(wordbook::entries().size() == 2);
+        assert(durable == "apple\tapple\n心\t\n");
+        assert(wordbook::add("東京"));
+        assert(durable == "apple\n心\n東京\n");
+        wordbook::load(); assert(wordbook::contains("心") && wordbook::contains("東京"));
     } else if (mode == "failure" || mode == "short-write") {
         write(target, "first\n"); wordbook::load();
         if (mode == "failure") mkdir(file_replace::temporary(target).c_str(), 0700);
         else { signal(SIGXFSZ, SIG_IGN); rlimit lim{16, 16}; assert(setrlimit(RLIMIT_FSIZE, &lim) == 0); }
-        assert(!wordbook::add(std::string(100, 'x'), "key"));
+        assert(!wordbook::add(std::string(100, 'x')));
         assert(!wordbook::lastError().empty());
         assert(wordbook::entries().size() == 1 && read(target) == "first\n");
     } else if (mode == "nvs") {
         mounted = false; wordbook::load(); assert(wordbook::contains("stale"));
-        writeFailure = true; assert(!wordbook::add("failed", "failed")); writeFailure = false;
+        writeFailure = true; assert(!wordbook::add("failed")); writeFailure = false;
         commitFailure = true; assert(!wordbook::remove("stale")); commitFailure = false;
         assert(wordbook::contains("stale") && durable == "stale\n");
         for (int i = 0; i < 7; ++i) assert(wordbook::add(std::to_string(i) + std::string(500, 'x')));
@@ -86,7 +104,7 @@ int main(int argc, char** argv) {
         write(target, "first\n"); wordbook::load();
         write(target, std::string(65537, 'x')); wordbook::load();
         assert(wordbook::contains("first") && !wordbook::lastError().empty());
-        assert(!wordbook::add("valid", "valid"));
+        assert(!wordbook::add("valid"));
         assert(read(target) == std::string(65537, 'x'));
         assert(!wordbook::add("bad\nline") && !wordbook::add(std::string(513, 'x')));
     } else if (mode == "init") {

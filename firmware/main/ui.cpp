@@ -16,7 +16,6 @@
 #include "dict_store.hpp"
 #include "wordbook.hpp"
 #include "font_store.hpp"
-#include "esp_random.h"
 
 static const char* TAG = "ui";
 
@@ -55,7 +54,6 @@ const lgfx::IFont* F_SMALL = &fonts::lgfxJapanGothic_20;
 const lgfx::IFont* F_LIST  = &fonts::lgfxJapanGothic_28;
 const lgfx::IFont* F_HEAD  = &fonts::lgfxJapanGothic_40;
 const lgfx::IFont* F_BODY  = &fonts::lgfxJapanGothic_28;
-const lgfx::IFont* F_BIG   = &fonts::lgfxJapanGothic_40;   // quiz prompts and results
 
 // Switch to the flash fonts if font_store loaded them (see font_store.hpp).
 void applyFonts()
@@ -66,7 +64,6 @@ void applyFonts()
     F_LIST  = font_store::get(28);
     F_HEAD  = font_store::get(40);
     F_BODY  = font_store::get(28);
-    F_BIG   = font_store::get(40);
 }
 
 struct Line {
@@ -83,7 +80,6 @@ struct Hit {
 };
 
 constexpr int ALL_DICTS = -1;
-Dictionary* quizDict();
 
 struct State {
     std::vector<std::unique_ptr<Dictionary>>* dicts = nullptr;
@@ -106,7 +102,7 @@ M5Canvas screenCv(&M5.Display);
 
 enum : uint8_t { DIRTY_HEADER = 1, DIRTY_LIST = 2, DIRTY_BODY = 4, DIRTY_FOOTER = 8, DIRTY_ALL = 15 };
 uint8_t g_dirty = 0;
-enum class Mode { Dict, QuizMenu, Quiz, QuizResult, PowerOff, Credits };
+enum class Mode { Dict, PowerOff, Credits };
 Mode g_mode = Mode::Dict;
 void invalidate(uint8_t mask) { g_dirty |= mask; }
 
@@ -215,8 +211,7 @@ void layoutBody()
     if (!d->entry(hit.idx, head, def)) return;
 
     const int width = BODY_W - 2 * BODY_PAD;
-    const bool saved = wordbook::contains(head) ||
-        (d == quizDict() && wordbook::containsQuizKey(d->key(hit.idx)));
+    const bool saved = wordbook::contains(head);
     wrapInto(screenCv, F_HEAD, saved ? head + "　〔単語帳〕" : head, width, 0, 0, C_HEAD, S.body);
     if (allMode()) S.body.push_back(Line{d->title(), F_SMALL, C_HINT2, 0, 26});
     S.body.push_back(Line{"", F_BODY, C_TEXT, 0, 14});   // spacer (divider drawn here)
@@ -486,7 +481,7 @@ void drawFooter()
     g.setFont(F_SMALL);
     g.setTextColor(wordbook::lastError().empty() ? C_FOOTER_T : C_WARN);
     g.setTextDatum(textdatum_t::middle_left);
-    g.drawString(wordbook::lastError().empty() ? "↑↓ 選択  PgUp/Dn ページ  ←→ 説明  Tab 辞書  Enter 単語帳  Ctrl+T テスト  Esc クリア  Ctrl+R 反転  Ctrl+Q 電源  Ctrl+L 出典" : wordbook::lastError().c_str(),
+    g.drawString(wordbook::lastError().empty() ? "↑↓ 選択  PgUp/Dn ページ  ←→ 説明  Tab 辞書  Enter 単語帳  Esc クリア  Ctrl+R 反転  Ctrl+Q 電源  Ctrl+L 出典" : wordbook::lastError().c_str(),
                  16, SCREEN_H - FOOTER_H / 2);
 }
 
@@ -503,16 +498,13 @@ void present()
 }
 // [/book:10-present]
 
-void drawQuizMenu(); void drawQuizQuestion(); void drawQuizResult(); void drawPowerOff(); void drawCredits();
+void drawPowerOff(); void drawCredits();
 
 // [book:10-render]
 void render()
 {
     if (!g_dirty) return;
     const int64_t t0 = esp_timer_get_time();
-    if (g_mode == Mode::QuizMenu) { drawQuizMenu(); present(); g_dirty = 0; return; }
-    if (g_mode == Mode::Quiz) { drawQuizQuestion(); present(); g_dirty = 0; return; }
-    if (g_mode == Mode::QuizResult) { drawQuizResult(); present(); g_dirty = 0; return; }
     if (g_mode == Mode::PowerOff) { drawPowerOff(); present(); g_dirty = 0; return; }
     if (g_mode == Mode::Credits) { drawCredits(); present(); g_dirty = 0; return; }
     if (g_dirty & DIRTY_HEADER) drawHeader();
@@ -530,357 +522,7 @@ void render()
 void drawAll() { invalidate(DIRTY_ALL); }
 
 
-// ---- 英単語テスト (quiz) -----------------------------------------------------
-extern "C" const char _binary_2000_txt_start[];
-extern "C" const char _binary_2000_txt_end[];
-
-// What the round asks about.
-enum class QuizKind : uint8_t { Word, Kanji };
-// Word levels: 0 = frequent 2000 + wordbook, 1..3 = NGSL bands, 4 = wordbook only
-constexpr int LEVEL_FREQ = 0, LEVEL_WORDBOOK = 4;
-
-
-struct Question {
-    std::string word, def;      // asked word (or kanji) and its full definition (or readings)
-    std::string options[4];
-    int correct = 0;
-    int kind = 0;               // kanji quiz: 1 = on reading asked, 2 = kun reading asked
-};
-
-struct Quiz {
-    static constexpr int COUNT = 10;
-    QuizKind kind = QuizKind::Word;
-    bool jaToEn = false;              // word quiz direction (toggled with Tab in the menu)
-    int level = LEVEL_FREQ;           // word quiz source
-    int gradeLo = 1, gradeHi = 2;     // kanji quiz grades (8 = junior high)
-    int index = 0, score = 0, answered = -1;
-    Question q;
-    std::vector<std::pair<std::string, std::string>> wrong;   // (key, line for the result screen)
-    std::vector<std::string> pool;
-    std::vector<std::string> asked;   // words already used as questions in this round
-} Z;
-
-std::vector<std::string> g_freqWords;
-std::vector<std::string> g_ngsl[4];   // [1..3] = NGSL bands
-
-// One line of kanji_quiz.txt: kanji<TAB>grade<TAB>on/on<TAB>kun/kun. Parsed on demand so the
-// 2,136 entries cost one small index instead of thousands of heap strings.
-struct KanjiRef { const char* line; uint16_t len; uint8_t grade; };
-std::vector<KanjiRef> g_kanji;
-// The NGSL and kanji lists are CC BY-SA data, so they are not built into the firmware: the
-// reader makes them next to the SD dictionaries (tools/make_quiz_data.py or the web page).
-// g_kanji points into g_kanjiText, so the text stays loaded until the next reload.
-std::string g_ngslText, g_kanjiText;
-constexpr const char* NGSL_FILE = "ngsl_levels.txt";
-constexpr const char* KANJI_FILE = "kanji_quiz.txt";
-
-// Read a whole file from the SD dictionary folder ("" if it is missing).
-std::string readSdText(const char* name)
-{
-    std::string path = std::string(cfg::SD_DICT_DIR) + "/" + name, text;
-    FILE* f = fopen(path.c_str(), "rb");
-    if (!f) return text;
-    char buf[2048];
-    size_t n;
-    while ((n = fread(buf, 1, sizeof(buf), f)) > 0) text.append(buf, n);
-    fclose(f);
-    return text;
-}
-
-// Call fn(line, len) for each non-empty, non-comment line of an embedded text file.
-template <class Fn>
-void forEachLine(const char* begin, const char* end, Fn fn)
-{
-    const char* p = begin;
-    while (p < end) {
-        const char* e = p;
-        while (e < end && *e != '\n' && *e != '\0') ++e;
-        size_t n = e - p;
-        if (n && p[n - 1] == '\r') --n;
-        if (n && *p != '#') fn(p, n);
-        p = e + 1;
-    }
-}
-
-// [book:13-load-data]
-void loadQuizData()
-{
-    g_freqWords.clear();
-    forEachLine(_binary_2000_txt_start, _binary_2000_txt_end,
-                [](const char* l, size_t n) { g_freqWords.emplace_back(l, n); });
-    for (auto& v : g_ngsl) v.clear();
-    g_ngslText = readSdText(NGSL_FILE);
-    const char* p = g_ngslText.data();
-    forEachLine(p, p + g_ngslText.size(), [](const char* l, size_t n) {
-        const char* tab = static_cast<const char*>(memchr(l, '\t', n));
-        if (!tab || tab + 1 >= l + n) return;
-        const int level = tab[1] - '0';
-        if (level >= 1 && level <= 3) g_ngsl[level].emplace_back(l, tab - l);
-    });
-    g_kanji.clear();
-    g_kanjiText = readSdText(KANJI_FILE);
-    p = g_kanjiText.data();
-    forEachLine(p, p + g_kanjiText.size(), [](const char* l, size_t n) {
-        const char* tab = static_cast<const char*>(memchr(l, '\t', n));
-        if (!tab) return;
-        g_kanji.push_back(KanjiRef{l, static_cast<uint16_t>(n), static_cast<uint8_t>(atoi(tab + 1))});
-    });
-    ESP_LOGI(TAG, "quiz data: freq %u, ngsl %u/%u/%u, kanji %u", (unsigned)g_freqWords.size(),
-             (unsigned)g_ngsl[1].size(), (unsigned)g_ngsl[2].size(), (unsigned)g_ngsl[3].size(), (unsigned)g_kanji.size());
-}
-// [/book:13-load-data]
-
-
-struct KanjiEntry { std::string ch; std::vector<std::string> on, kun; };
-
-std::vector<std::string> splitSlash(const std::string& s)
-{
-    std::vector<std::string> out;
-    size_t pos = 0;
-    while (pos < s.size()) {
-        size_t e = s.find('/', pos);
-        if (e == std::string::npos) e = s.size();
-        if (e > pos) out.push_back(s.substr(pos, e - pos));
-        pos = e + 1;
-    }
-    return out;
-}
-
-KanjiEntry parseKanji(const KanjiRef& r)
-{
-    std::string line(r.line, r.len), f[4];
-    size_t pos = 0;
-    for (int i = 0; i < 4; ++i) {
-        size_t e = line.find('\t', pos);
-        f[i] = line.substr(pos, e == std::string::npos ? std::string::npos : e - pos);
-        if (e == std::string::npos) break;
-        pos = e + 1;
-    }
-    return KanjiEntry{f[0], splitSlash(f[2]), splitSlash(f[3])};
-}
-
-std::string kanjiReadings(const KanjiEntry& k)
-{
-    std::string s;
-    auto join = [](const std::vector<std::string>& v) {
-        std::string r;
-        for (size_t i = 0; i < v.size(); ++i) { if (i) r += "、"; r += v[i]; }
-        return r;
-    };
-    if (!k.on.empty()) s += "音: " + join(k.on);
-    if (!k.kun.empty()) { if (!s.empty()) s += "　"; s += "訓: " + join(k.kun); }
-    return s;
-}
-
-Dictionary* quizDict()
-{
-    for (int i = 0; i < dictCount(); ++i) if (dictAt(i)->source() == "flash") return dictAt(i);
-    return nullptr;
-}
-
-bool lookupExact(Dictionary* d, const std::string& word, std::string& head, std::string& def)
-{
-    if (!d) return false;
-    const std::string k = Dictionary::normalize(word);
-    const uint32_t i = d->lowerBound(k.c_str());
-    if (i >= d->count() || strcmp(d->key(i), k.c_str()) != 0) return false;
-    return d->entry(i, head, def);
-}
-
-std::string truncateUtf8(const std::string& s, size_t maxChars)
-{
-    size_t i = 0, chars = 0;
-    while (i < s.size() && chars < maxChars) { i += utf8len(static_cast<unsigned char>(s[i])); ++chars; }
-    return i < s.size() ? s.substr(0, i) + "…" : s;
-}
-
-// First sense of an EJDict definition, shortened for an answer button.
-std::string firstSense(const std::string& def)
-{
-    std::string sense = def.substr(0, def.find(" / "));
-    if (!sense.empty() && sense[0] == '=') {   // "=other" cross reference: use the next sense if any
-        size_t p = def.find(" / ");
-        if (p != std::string::npos) sense = def.substr(p + 3, def.find(" / ", p + 3) - (p + 3));
-    }
-    return truncateUtf8(sense, 44);
-}
-
-uint32_t rnd(uint32_t n) { return n ? esp_random() % n : 0; }
-
-std::vector<std::string> g_wordbookPool;
-
-void refreshWordbookPool()
-{
-    g_wordbookPool.clear();
-    for (const auto& e : wordbook::entries()) {
-        std::string head, def;
-        if (!e.quizKey.empty() && lookupExact(quizDict(), e.quizKey, head, def) && !def.empty())
-            g_wordbookPool.push_back(e.quizKey);
-    }
-    std::sort(g_wordbookPool.begin(), g_wordbookPool.end());
-    g_wordbookPool.erase(std::unique(g_wordbookPool.begin(), g_wordbookPool.end()), g_wordbookPool.end());
-}
-
-bool buildPool()
-{
-    refreshWordbookPool();
-    Z.pool.clear();
-    if (Z.level == LEVEL_FREQ || Z.level == LEVEL_WORDBOOK)
-        Z.pool = g_wordbookPool;
-    if (Z.level == LEVEL_FREQ) for (const auto& w : g_freqWords) Z.pool.push_back(w);
-    if (Z.level >= 1 && Z.level <= 3) Z.pool = g_ngsl[Z.level];
-    std::sort(Z.pool.begin(), Z.pool.end());
-    Z.pool.erase(std::unique(Z.pool.begin(), Z.pool.end()), Z.pool.end());
-    return Z.pool.size() >= 4;
-}
-
-int kanjiCount(int lo, int hi)
-{
-    int n = 0;
-    for (const auto& k : g_kanji) n += (k.grade >= lo && k.grade <= hi);
-    return n;
-}
-
-// Pick a random pool word that exists in the quiz dictionary.
-// `fresh`: the word will be asked, so skip words already asked in this round. Without this,
-// a word missed a moment ago (and just added to the wordbook) comes back in the same round.
-bool pickWord(std::string& word, std::string& def, const std::string& avoid, bool fresh = false)
-{
-    Dictionary* d = quizDict();
-    for (int tries = 0; tries < 40; ++tries) {
-        if (Z.pool.empty()) return false;
-        const auto& wb = g_wordbookPool;
-        std::string w;
-        if (!wb.empty() && Z.level == LEVEL_FREQ && rnd(2) == 0) w = wb[rnd(wb.size())];
-        else w = Z.pool[rnd(Z.pool.size())];
-        if (w == avoid) continue;
-        if (fresh && std::find(Z.asked.begin(), Z.asked.end(), w) != Z.asked.end()) continue;
-        std::string head;
-        if (lookupExact(d, w, head, def)) { word = w; return true; }
-    }
-    return false;
-}
-
-// Kanji reading question: show one kanji, answer one of its on (katakana) or kun (hiragana)
-// readings. Distractors are readings of the same kind from other kanji of the same grades.
-// [book:13-kanji-question]
-// [book:13-kanji-question-start]
-bool nextKanjiQuestion()
-{
-    std::vector<uint32_t> idx;
-    for (uint32_t i = 0; i < g_kanji.size(); ++i)
-        if (g_kanji[i].grade >= Z.gradeLo && g_kanji[i].grade <= Z.gradeHi) idx.push_back(i);
-    if (idx.size() < 8) return false;
-    KanjiEntry k;
-    for (int tries = 0; tries < 60; ++tries) {
-        k = parseKanji(g_kanji[idx[rnd(idx.size())]]);
-        if (std::find(Z.asked.begin(), Z.asked.end(), k.ch) == Z.asked.end()) break;
-        k.ch.clear();
-    }
-    if (k.ch.empty()) return false;
-    const bool useOn = k.kun.empty() || (!k.on.empty() && rnd(2) == 0);
-    const auto& mine = useOn ? k.on : k.kun;
-    Question q;
-    q.word = k.ch;
-    q.def = kanjiReadings(k);
-// [/book:13-kanji-question-start]
-    q.kind = useOn ? 1 : 2;
-    std::string opts[4];
-    opts[0] = mine[rnd(mine.size())];
-    for (int i = 1; i < 4; ++i) {
-        for (int guard = 0; guard < 60; ++guard) {
-            KanjiEntry o = parseKanji(g_kanji[idx[rnd(idx.size())]]);
-            const auto& theirs = useOn ? o.on : o.kun;
-            if (o.ch == k.ch || theirs.empty()) continue;
-            const std::string cand = theirs[rnd(theirs.size())];
-            bool clash = std::find(k.on.begin(), k.on.end(), cand) != k.on.end() ||
-                         std::find(k.kun.begin(), k.kun.end(), cand) != k.kun.end();
-            for (int j = 1; j < i; ++j) clash |= (opts[j] == cand);
-// [book:13-kanji-question-end]
-            if (!clash) { opts[i] = cand; break; }
-        }
-        if (opts[i].empty()) return false;
-    }
-    q.correct = rnd(4);
-    int src = 1;
-    for (int i = 0; i < 4; ++i) q.options[i] = (i == q.correct) ? opts[0] : opts[src++];
-    Z.q = q;
-    Z.asked.push_back(q.word);
-    Z.answered = -1;
-    return true;
-}
-// [/book:13-kanji-question-end]
-// [/book:13-kanji-question]
-
-
-// [book:13-next-question]
-bool nextQuestion()
-{
-    if (Z.kind == QuizKind::Kanji) return nextKanjiQuestion();
-    Question q;
-    if (!pickWord(q.word, q.def, "", true)) return false;
-    std::string opts[4];
-    opts[0] = Z.jaToEn ? q.word : firstSense(q.def);
-    for (int i = 1; i < 4; ++i) {
-        bool unique = false;
-        for (int guard = 0; guard < 10; ++guard) {
-            std::string w, def;
-            if (!pickWord(w, def, q.word)) return false;
-            const std::string candidate = Z.jaToEn ? w : firstSense(def);
-            if (candidate.empty() || std::find(opts, opts + i, candidate) != opts + i) continue;
-            opts[i] = candidate;
-            unique = true;
-            break;
-        }
-        if (!unique) return false;   // never show a question with duplicate answers
-    }
-    q.correct = rnd(4);
-    int src = 1;
-    for (int i = 0; i < 4; ++i) q.options[i] = (i == q.correct) ? opts[0] : opts[src++];
-    Z.q = q;
-    Z.asked.push_back(q.word);
-    Z.answered = -1;
-    return true;
-}
-// [/book:13-next-question]
-
-void startQuiz()
-{
-    Z.index = 0; Z.score = 0; Z.answered = -1;
-    Z.wrong.clear();
-    Z.asked.clear();
-    const bool ready = (Z.kind == QuizKind::Kanji) ? true : buildPool();
-    if (!ready || !nextQuestion()) { g_mode = Mode::QuizMenu; invalidate(DIRTY_ALL); return; }
-    g_mode = Mode::Quiz;
-    invalidate(DIRTY_ALL);
-}
-
-// [book:13-answer]
-void answerQuiz(int k)
-{
-    if (Z.answered >= 0) return;
-    Z.answered = k;
-    if (k == Z.q.correct) ++Z.score;
-    else {
-        const bool seen = std::any_of(Z.wrong.begin(), Z.wrong.end(),
-                                      [](const auto& w) { return w.first == Z.q.word; });
-        if (!seen) {
-            const std::string line = Z.q.word + "　" +
-                (Z.kind == QuizKind::Kanji ? Z.q.def : firstSense(Z.q.def));
-            Z.wrong.emplace_back(Z.q.word, line);
-        }
-        if (Z.kind == QuizKind::Word) wordbook::add(Z.q.word, Z.q.word);
-    }
-    invalidate(DIRTY_ALL);
-}
-// [/book:13-answer]
-
-void advanceQuiz()
-{
-    if (++Z.index >= Quiz::COUNT || !nextQuestion()) g_mode = Mode::QuizResult;
-    invalidate(DIRTY_ALL);
-}
-
+// ---- dialogs ---------------------------------------------------------------
 // Draw wrapped text; returns the y after the last line.
 int drawTextBlock(const lgfx::IFont* font, uint32_t color, const std::string& text, int x, int y, int width, int maxLines = 99)
 {
@@ -898,7 +540,7 @@ int drawTextBlock(const lgfx::IFont* font, uint32_t color, const std::string& te
     return y;
 }
 
-void drawQuizChrome(const char* title, const char* footer)
+void drawDialogChrome(const char* title, const char* footer)
 {
     auto& g = screenCv;
     g.fillScreen(C_BG);
@@ -911,138 +553,12 @@ void drawQuizChrome(const char* title, const char* footer)
     g.drawString(wordbook::lastError().empty() ? footer : wordbook::lastError().c_str(), 16, SCREEN_H - FOOTER_H / 2);
 }
 
-// Menu rows: keys 1-5 = word quiz sources, 6-9 = kanji grade ranges.
-struct MenuItem { const char* label; const char* note; };
-const MenuItem kWordItems[5] = {
-    {"頻出 2000 語 + 単語帳", ""},
-    {"基礎（NGSL 1〜1000 位）", "中学英語の目安"},
-    {"標準（NGSL 1001〜2000 位）", "高校基礎の目安"},
-    {"発展（NGSL 2001 位〜）", "高校〜大学入試の目安"},
-    {"単語帳だけ", ""},
-};
-const struct { const char* label; int lo, hi; } kKanjiItems[4] = {
-    {"小学 1〜2 年", 1, 2}, {"小学 3〜4 年", 3, 4}, {"小学 5〜6 年", 5, 6}, {"中学（常用漢字）", 8, 8},
-};
-constexpr int MENU_Y0 = 170, MENU_ROW = 76, MENU_COL2 = 700;
-
-bool menuItemEnabled(int i)
-{
-    if (i < 5 && !quizDict()) return false;
-    if (i == 4) return g_wordbookPool.size() >= 4;
-    if (i >= 1 && i <= 3) return g_ngsl[i].size() >= 4;
-    if (i >= 5 && i <= 8) return kanjiCount(kKanjiItems[i - 5].lo, kKanjiItems[i - 5].hi) >= 4;
-    return true;
-}
-
-void drawQuizMenu()
-{
-    refreshWordbookPool();
-    auto& g = screenCv;
-    drawQuizChrome("テスト", "1〜9 で開始    Tab 英→和 / 和→英    Esc 辞書に戻る");
-    g.setTextDatum(textdatum_t::top_left);
-    g.setFont(F_TITLE); g.setTextColor(C_HEAD);
-    g.drawString(Z.jaToEn ? "英単語（和 → 英）" : "英単語（英 → 和）", 60, 112);
-    g.drawString("漢字の読み", MENU_COL2, 112);
-    for (int i = 0; i < 5; ++i) {
-        const int y = MENU_Y0 + i * MENU_ROW;
-        g.setFont(F_BODY); g.setTextColor(menuItemEnabled(i) ? C_TEXT : C_DIV);
-        g.drawString((std::to_string(i + 1) + "  " + kWordItems[i].label).c_str(), 60, y);
-        g.setFont(F_SMALL); g.setTextColor(C_HINT2);
-        if (*kWordItems[i].note) g.drawString(kWordItems[i].note, 104, y + 36);
-    }
-    for (int i = 0; i < 4; ++i) {
-        const int y = MENU_Y0 + i * MENU_ROW;
-        g.setFont(F_BODY); g.setTextColor(menuItemEnabled(i + 5) ? C_TEXT : C_DIV);
-        g.drawString((std::to_string(i + 6) + "  " + kKanjiItems[i].label).c_str(), MENU_COL2, y);
-        g.setFont(F_SMALL); g.setTextColor(C_HINT2);
-        g.drawString((std::to_string(kanjiCount(kKanjiItems[i].lo, kKanjiItems[i].hi)) + " 字").c_str(), MENU_COL2 + 44, y + 36);
-    }
-    std::string info = "単語帳 " + std::to_string(wordbook::entries().size()) +
-                       " 件（出題できる英単語 " + std::to_string(g_wordbookPool.size()) +
-                       " 語）。最大10問、1〜4かタッチで回答";
-    if (g_ngsl[1].empty() || g_kanji.empty())
-        drawTextBlock(F_SMALL, 0xD64545, "灰色のテストは、SD カードの dict フォルダにテストのデータ"
-                      "（ngsl_levels.txt、kanji_quiz.txt）を作ると使えます", 60, SCREEN_H - FOOTER_H - 100, SCREEN_W - 120, 1);
-    drawTextBlock(F_SMALL, C_HINT2, info, 60, SCREEN_H - FOOTER_H - 60, SCREEN_W - 120, 2);
-}
-
-// Start the round chosen by menu item 0..8.
-// [book:13-menu-item]
-void startMenuItem(int item)
-{
-    if (item < 5) {
-        if (!menuItemEnabled(item)) return;
-        Z.kind = QuizKind::Word;
-        Z.level = item;
-    } else if (item < 9) {
-        if (!menuItemEnabled(item)) return;
-        Z.kind = QuizKind::Kanji;
-        Z.gradeLo = kKanjiItems[item - 5].lo;
-        Z.gradeHi = kKanjiItems[item - 5].hi;
-    } else {
-        return;
-    }
-    startQuiz();
-}
-// [/book:13-menu-item]
-
-
-constexpr int OPT_Y0 = 286, OPT_H = 68, OPT_GAP = 8;
-
-void drawQuizQuestion()
-{
-    auto& g = screenCv;
-    std::string title = "第 " + std::to_string(Z.index + 1) + " 問 / " + std::to_string(Quiz::COUNT) + "　　正解 " + std::to_string(Z.score);
-    drawQuizChrome(title.c_str(), Z.answered < 0 ? "1〜4 またはタッチで回答    Esc 中止" : "Enter / Space 次へ    Esc 中止");
-
-    const int x = 60, w = SCREEN_W - 2 * x;
-    const bool kanji = Z.kind == QuizKind::Kanji;
-    if (kanji) {
-        g.setTextDatum(textdatum_t::top_left);
-        g.setFont(F_BIG); g.setTextColor(C_HEAD);
-        g.setTextSize(3);
-        g.drawString(Z.q.word.c_str(), x, 104);
-        g.setTextSize(1);
-    } else {
-        std::string prompt = Z.jaToEn ? firstSense(Z.q.def) : Z.q.word;
-        drawTextBlock(Z.jaToEn ? F_HEAD : F_BIG, C_HEAD, prompt, x, 120, w, 2);
-    }
-    g.setFont(F_SMALL); g.setTextColor(C_HINT2);
-    g.setTextDatum(textdatum_t::top_left);
-    const char* ask = kanji ? (Z.q.kind == 1 ? "この漢字の音読みは？（カタカナ）" : "この漢字の訓読みは？（ひらがな、（ ）は送りがな）")
-                            : (Z.jaToEn ? "この意味の英単語は？" : "この単語の意味は？");
-    g.drawString(ask, kanji ? x + 160 : x, kanji ? 200 : 244);
-
-    for (int i = 0; i < 4; ++i) {
-        const int y = OPT_Y0 + i * (OPT_H + OPT_GAP);
-        uint32_t bg = C_LIST_BG, fg = C_TEXT;
-        if (Z.answered >= 0) {
-            if (i == Z.q.correct) { bg = 0x2E9E5B; fg = 0xFFFFFF; }
-            else if (i == Z.answered) { bg = 0xD64545; fg = 0xFFFFFF; }
-        }
-        g.fillRoundRect(x, y, w, OPT_H, 10, bg);
-        g.setTextDatum(textdatum_t::middle_left);
-        g.setFont(F_HEAD); g.setTextColor(fg);
-        g.drawString(std::to_string(i + 1).c_str(), x + 24, y + OPT_H / 2);
-        g.setFont(F_BODY);
-        g.drawString(ellipsize(g, Z.q.options[i], w - 110).c_str(), x + 80, y + OPT_H / 2);
-    }
-    if (Z.answered >= 0) {
-        const int y = OPT_Y0 + 4 * (OPT_H + OPT_GAP) + 4;
-        g.setTextDatum(textdatum_t::top_left);
-        g.setFont(F_SMALL); g.setTextColor(Z.answered == Z.q.correct ? (uint32_t)0x2E9E5B : (uint32_t)0xD64545);
-        g.drawString(Z.answered == Z.q.correct ? "正解！" : (kanji ? "不正解" :
-                     (wordbook::lastError().empty() ? "不正解 → 単語帳へ" : "不正解（単語帳未保存）")), x, y);
-        drawTextBlock(F_SMALL, C_TEXT, Z.q.word + ": " + Z.q.def, x + 250, y, w - 250, 2);
-    }
-}
-
 void drawPowerOff()
 {
     auto& g = screenCv;
-    drawQuizChrome("電源オフ", "Enter 電源を切る    Esc 戻る");
+    drawDialogChrome("電源オフ", "Enter 電源を切る    Esc 戻る");
     g.setTextDatum(textdatum_t::top_left);
-    g.setFont(F_BIG); g.setTextColor(C_HEAD);
+    g.setFont(F_HEAD); g.setTextColor(C_HEAD);
     g.drawString("電源を切りますか？", 80, 200);
     drawTextBlock(F_BODY, C_HINT2, "Enter で電源が切れます。次に使うときは本体の電源ボタンを押してください。", 80, 300, SCREEN_W - 160);
 }
@@ -1053,29 +569,27 @@ void drawPowerOff()
 const struct { const char* head; const char* body; } kCredits[] = {
     {"英和辞書（本体に内蔵）",
      "EJDict-hand（kujirahand）。CC0 1.0（パブリックドメイン）"},
-    {"和英・英和（逆引き）・漢字辞典・漢字の読みテスト",
+    {"和英・英和（逆引き）・漢字辞典",
      "JMdict と KANJIDIC2 を使っています。These files are the property of the Electronic Dictionary "
      "Research and Development Group, and are used in conformance with the Group's licence. "
      "CC BY-SA 4.0　https://www.edrdg.org/"},
     {"語義・類語辞書",
      "日本語 WordNet（NICT、Francis Bond ほか）。Japanese WordNet License。"
      "元になった WordNet 3.0 は Copyright 2006 by Princeton University"},
-    {"英単語テスト（基礎・標準・発展）",
-     "New General Service List 1.2（Browne, C., Culligan, B., and Phillips, J.）。CC BY-SA 4.0"},
     {"フォント",
      "Noto Sans JP（SIL Open Font License 1.1）、IPA ゴシック由来の lgfxJapanGothic（IPA フォントライセンス v1.0）"},
 };
 
 void drawCredits()
 {
-    drawQuizChrome("出典とライセンス", "Esc 辞書に戻る");
+    drawDialogChrome("出典とライセンス", "Esc 辞書に戻る");
     int y = 108;
     for (const auto& c : kCredits) {
         y = drawTextBlock(F_TITLE, C_HEAD, c.head, 60, y, SCREEN_W - 120, 1);
         y = drawTextBlock(F_SMALL, C_TEXT, c.body, 84, y + 2, SCREEN_W - 144, 3) + 12;
     }
     drawTextBlock(F_SMALL, C_HINT2,
-                  "SD カードの辞書とテストのデータは、使う人が公式のデータから作ったものです。"
+                  "SD カードの辞書は、使う人が公式のデータから作ったものです。"
                   "変更点と条文は、SD カードの dict フォルダの「出典とライセンス.txt」にあります。",
                   60, y + 4, SCREEN_W - 120, 2);
 }
@@ -1087,7 +601,7 @@ void doPowerOff()
     ESP_LOGI(TAG, "power off");
     screenCv.fillScreen(C_HEADER);
     screenCv.setTextDatum(textdatum_t::middle_center);
-    screenCv.setFont(F_BIG); screenCv.setTextColor(C_HEADER_T);
+    screenCv.setFont(F_HEAD); screenCv.setTextColor(C_HEADER_T);
     screenCv.drawString("電源を切っています...", SCREEN_W / 2, SCREEN_H / 2);
     present();
     vTaskDelay(pdMS_TO_TICKS(600));
@@ -1101,83 +615,20 @@ void doPowerOff()
 }
 // [/book:14-power-off]
 
-void drawQuizResult()
-{
-    auto& g = screenCv;
-    drawQuizChrome("結果", "Enter もう一度    Esc 辞書に戻る");
-    const int x = 80;
-    g.setTextDatum(textdatum_t::top_left);
-    g.setFont(F_BIG); g.setTextColor(C_HEAD);
-    std::string score = std::to_string(Z.index) + " 問中 " + std::to_string(Z.score) + " 問正解";
-    g.drawString(score.c_str(), x, 140);
-    int y = 230;
-    if (Z.wrong.empty()) {
-        drawTextBlock(F_BODY, C_TEXT, "全問正解です！", x, y, SCREEN_W - 2 * x);
-    } else {
-        drawTextBlock(F_BODY, C_HINT2, Z.kind == QuizKind::Kanji ? "間違えた漢字:" : "間違えた単語（単語帳に入れました）:",
-                      x, y, SCREEN_W - 2 * x);
-        y += 50;
-        for (const auto& w : Z.wrong) {
-            y = drawTextBlock(F_BODY, C_TEXT, w.second, x, y, SCREEN_W - 2 * x, 1);
-            if (y > SCREEN_H - FOOTER_H - 40) break;
-        }
-    }
-}
-
-void onKeyQuiz(const KeyEvent& ev)
+void onKeyDialog(const KeyEvent& ev)
 {
     const uint8_t k = ev.keycode;
-    // digit 0..8 for keys 1..9 (number row or keypad)
-    const int digit = (k >= 0x1E && k <= 0x26) ? (k - 0x1E) : (k >= 0x59 && k <= 0x61) ? (k - 0x59) : -1;
-    switch (g_mode) {
-    case Mode::QuizMenu:
-        if (k == hid::KEY_ESC) { g_mode = Mode::Dict; drawAll(); }
-        else if (k == hid::KEY_TAB) { Z.jaToEn = !Z.jaToEn; invalidate(DIRTY_ALL); }
-        else if (digit >= 0) startMenuItem(digit);
-        break;
-    case Mode::Quiz:
-        if (k == hid::KEY_ESC) { g_mode = Mode::QuizMenu; invalidate(DIRTY_ALL); }
-        else if (Z.answered < 0 && digit >= 0 && digit < 4) answerQuiz(digit);
-        else if (Z.answered >= 0 && (k == hid::KEY_ENTER || k == hid::KEY_KP_ENTER || k == hid::KEY_SPACE || k == hid::KEY_RIGHT)) advanceQuiz();
-        break;
-    case Mode::QuizResult:
-        if (k == hid::KEY_ESC) { g_mode = Mode::Dict; drawAll(); }
-        else if (k == hid::KEY_ENTER || k == hid::KEY_KP_ENTER || k == hid::KEY_SPACE) { g_mode = Mode::QuizMenu; invalidate(DIRTY_ALL); }
-        break;
-    case Mode::PowerOff:
-        if (k == hid::KEY_ESC) { g_mode = Mode::Dict; drawAll(); }
-        else if (k == hid::KEY_ENTER || k == hid::KEY_KP_ENTER) doPowerOff();
-        break;
-    case Mode::Credits:
-        if (k == hid::KEY_ESC || k == hid::KEY_ENTER || k == hid::KEY_KP_ENTER) { g_mode = Mode::Dict; drawAll(); }
-        break;
-    default: break;
-    }
+    if (k == hid::KEY_ESC) { g_mode = Mode::Dict; drawAll(); return; }
+    if (k != hid::KEY_ENTER && k != hid::KEY_KP_ENTER) return;
+    if (g_mode == Mode::PowerOff) doPowerOff();
+    else if (g_mode == Mode::Credits) { g_mode = Mode::Dict; drawAll(); }
 }
 
-void onTouchQuiz()
+void onTouchDialog()
 {
-    auto t = M5.Touch.getDetail();
-    if (!t.wasClicked()) return;
-    if (g_mode == Mode::Quiz) {
-        if (Z.answered < 0) {
-            for (int i = 0; i < 4; ++i) {
-                const int y = OPT_Y0 + i * (OPT_H + OPT_GAP);
-                if (t.y >= y && t.y < y + OPT_H) { answerQuiz(i); return; }
-            }
-        } else if (t.y > HEADER_H) {
-            advanceQuiz();
-        }
-    } else if (g_mode == Mode::QuizMenu) {
-        if (t.y < MENU_Y0 - 10) { Z.jaToEn = !Z.jaToEn; invalidate(DIRTY_ALL); return; }   // tap the headings
-        const int row = (t.y - (MENU_Y0 - 10)) / MENU_ROW;
-        if (t.x < MENU_COL2 - 20 && row >= 0 && row < 5) startMenuItem(row);
-        else if (t.x >= MENU_COL2 - 20 && row >= 0 && row < 4) startMenuItem(5 + row);
-    } else if (g_mode == Mode::QuizResult && t.y > HEADER_H) {
-        g_mode = Mode::QuizMenu; invalidate(DIRTY_ALL);
-    } else if (g_mode == Mode::PowerOff || g_mode == Mode::Credits) {
-        g_mode = Mode::Dict; drawAll();
-    }
+    if (!M5.Touch.getDetail().wasClicked()) return;
+    g_mode = Mode::Dict;
+    drawAll();
 }
 
 // ---- input ------------------------------------------------------------------
@@ -1207,14 +658,11 @@ void reloadDictionaries()
     S.body.clear();
     S.results.clear();
     dict_store::loadAll(*S.dicts);
-    loadQuizData();   // the quiz lists sit next to the SD dictionaries
     wordbook::load(); // also refresh a wordbook restored through the transfer tool
     if (S.active >= dictCount()) S.active = ALL_DICTS;
     doSearch();
     drawAll();
 }
-
-void onKeyQuiz(const KeyEvent& ev);
 
 // [book:8-on-key]
 // [book:8-on-key-start]
@@ -1224,14 +672,9 @@ void onKey(const KeyEvent& ev)
     const bool ctrl = ev.modifier & hid::MOD_CTRL;
     const bool shift = ev.modifier & hid::MOD_SHIFT;
 
-    if (g_mode != Mode::Dict) { onKeyQuiz(ev); return; }
+    if (g_mode != Mode::Dict) { onKeyDialog(ev); return; }
     if (ctrl && k == 0x14) {   // Ctrl+Q: power off (with confirmation)
         g_mode = Mode::PowerOff;
-        invalidate(DIRTY_ALL);
-        return;
-    }
-    if (ctrl && k == 0x17) {   // Ctrl+T: quiz
-        g_mode = Mode::QuizMenu;
         invalidate(DIRTY_ALL);
         return;
     }
@@ -1287,7 +730,7 @@ void onKey(const KeyEvent& ev)
         Dictionary* d = dictAt(S.results[S.selected].dict);
         std::string head, def;
         if (d && d->entry(S.results[S.selected].idx, head, def)) {
-            wordbook::toggle(head, d == quizDict() ? d->key(S.results[S.selected].idx) : "");
+            wordbook::toggle(head);
             layoutBody();
             invalidate(DIRTY_HEADER | DIRTY_BODY | DIRTY_FOOTER);
         }
@@ -1403,7 +846,6 @@ void ui::run(std::vector<std::unique_ptr<Dictionary>>& dicts)
     applyFonts();
     S.dicts = &dicts;
     S.active = ALL_DICTS;
-    loadQuizData();
     createScreenCanvas();
     S.kbdI2c = keyboard::i2cConnected();
     S.kbdUsb = keyboard::usbConnected();
@@ -1459,7 +901,7 @@ void ui::run(std::vector<std::unique_ptr<Dictionary>>& dicts)
         }
 
         M5.update();
-        if (g_mode == Mode::Dict) onTouch(); else onTouchQuiz();
+        if (g_mode == Mode::Dict) onTouch(); else onTouchDialog();
         if (dict_store::reloadPending()) reloadDictionaries();
         render();
         if (debug_screenshot_pending()) debug_dump_screen();

@@ -3,17 +3,16 @@
 ## What this project distributes, and what it does not
 
 - **Distributed** (in the repository and in the firmware): the program code (MIT), EJDict-hand (CC0), the Japanese fonts, and the libraries linked into the firmware. Their licences are listed below.
-- **Not distributed**: JMdict, KANJIDIC2, Japanese WordNet and NGSL, and anything converted from them (the SD-card `.pdc` dictionaries and the quiz lists `ngsl_levels.txt` / `kanji_quiz.txt`). The reader downloads the official files and converts them on their own computer, with the tools in `tools/` (book chapters 11 and 12) or with the 「辞書を作る」 page (`web/make-dict.html`), which runs the same tools in the browser. `tools/make_notices.py` writes `出典とライセンス.txt` next to the converted files with the sources, licences, changes and the full licence texts that must travel with them.
+- **Not distributed**: JMdict, KANJIDIC2, Japanese WordNet, and anything converted from them (the SD-card `.pdc` dictionaries). The reader downloads the official files and converts them on their own computer, with the tools in `tools/` (book chapter 11) or with the 「辞書を作る」 page (`web/make-dict.html`), which runs the same tools in the browser. `tools/make_notices.py` writes `出典とライセンス.txt` next to the converted files with the sources, licences, changes and the full licence texts that must travel with them.
 
 ## Dictionary data
 
 | Data | Source | License | In this project |
 | --- | --- | --- | --- |
-| EJDict-hand (英和) | https://github.com/kujirahand/EJDict | CC0 1.0 (Public Domain) | Included in `third_party/ejdict/` (with its frequency lists). Converted to `data/ejdict.pdc` at build time and flashed with the firmware |
+| EJDict-hand (英和) | https://github.com/kujirahand/EJDict | CC0 1.0 (Public Domain) | Included in `third_party/ejdict/`. Converted to `data/ejdict.pdc` at build time and flashed with the firmware |
 | JMdict (和英・英和) | https://www.edrdg.org/wiki/index.php/JMdict-EDICT_Dictionary_Project | CC BY-SA 4.0 (https://www.edrdg.org/edrdg/licence.html) | Not distributed. Converted by the reader with `tools/convert_jmdict.py` |
-| KANJIDIC2 (漢字) | https://www.edrdg.org/wiki/index.php/KANJIDIC_Project | CC BY-SA 4.0 (same licence) | Not distributed. Converted by the reader with `tools/convert_kanjidic.py` and `tools/make_quiz_data.py`. No fields with special conditions (SKIP, Pinyin, Four Corner, etc.) are used |
+| KANJIDIC2 (漢字) | https://www.edrdg.org/wiki/index.php/KANJIDIC_Project | CC BY-SA 4.0 (same licence) | Not distributed. Converted by the reader with `tools/convert_kanjidic.py`. No fields with special conditions (SKIP, Pinyin, Four Corner, etc.) are used |
 | Japanese WordNet 1.1 (国語) | https://github.com/bond-lab/wnja | Japanese WordNet License (`third_party/wnja/license.txt`); based on WordNet 3.0 (`third_party/wnja/princeton_wordnet_license.txt`) | Not distributed. Converted by the reader with `tools/convert_wnjpn.py` (readings from JMdict, so the result is also CC BY-SA 4.0) |
-| NGSL 1.2 (英単語テストの段階) | New General Service List by Browne, C., Culligan, B., and Phillips, J. — https://www.newgeneralservicelist.com | CC BY-SA 4.0 | Not distributed. Converted by the reader with `tools/make_quiz_data.py` |
 
 The firmware acknowledges these sources on its 「出典とライセンス」 screen (Ctrl+L), as the EDRDG licence asks of apps that use the files: "These files are the property of the Electronic Dictionary Research and Development Group, and are used in conformance with the Group's licence."
 

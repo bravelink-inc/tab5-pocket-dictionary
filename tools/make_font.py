@@ -37,7 +37,7 @@ INK_ASCENT, INK_DESCENT = 1.05, 0.30   # glyph pixels kept: Latin descenders (g,
 
 
 def needed_chars(root):
-    """Every non-ASCII BMP character in the dictionary sources, quiz data and UI strings,
+    """Every non-ASCII BMP character in the dictionary sources and UI strings,
     plus all of JIS X 0208 so that ordinary Japanese text is always covered."""
     chars = set(range(0x20, 0x7F)) | set(range(0xA0, 0x100))
     files = (glob.glob(os.path.join(root, "data/tsv/*.tsv")) +

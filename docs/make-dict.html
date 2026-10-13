@@ -38,7 +38,7 @@
 <body>
 <header>
   <h1>M5Stack Tab5 電子辞書　辞書を作る</h1>
-  <p>和英・英和（逆引き）・漢字・語義と類語の 4 冊と、テストのデータを、このパソコンの中で作って microSD カードに入れます。<a href="index.html">書き込みページに戻る</a></p>
+  <p>和英・英和（逆引き）・漢字・語義と類語の 4 冊を、このパソコンの中で作って microSD カードに入れます。<a href="index.html">書き込みページに戻る</a></p>
 </header>
 <main>
   <section class="warn">
@@ -50,23 +50,21 @@
 
   <section>
     <h2>1. 元のデータをダウンロードする</h2>
-    <p>次の 5 つのリンクを順に押し、ファイルをダウンロードします（「ダウンロード」フォルダに入ります）。名前を変えたり、展開したりしなくてかまいません。</p>
+    <p>次の 4 つのリンクを順に押し、ファイルをダウンロードします（「ダウンロード」フォルダに入ります）。名前を変えたり、展開したりしなくてかまいません。</p>
     <table>
       <tr><th>ファイル</th><th>中身</th><th>配布元とライセンス</th></tr>
       <tr><td><a href="https://www.edrdg.org/pub/Nihongo/JMdict_e.gz">JMdict_e.gz</a>（約 10 MB）</td><td>和英・英和（逆引き）の元</td><td rowspan="2">EDRDG（<a href="https://www.edrdg.org/edrdg/licence.html">ライセンス</a>、CC BY-SA 4.0）</td></tr>
-      <tr><td><a href="https://www.edrdg.org/kanjidic/kanjidic2.xml.gz">kanjidic2.xml.gz</a>（約 1.5 MB）</td><td>漢字辞典と漢字の読みテストの元</td></tr>
+      <tr><td><a href="https://www.edrdg.org/kanjidic/kanjidic2.xml.gz">kanjidic2.xml.gz</a>（約 1.5 MB）</td><td>漢字辞典の元</td></tr>
       <tr><td><a href="https://github.com/bond-lab/wnja/releases/download/v1.1/wnjpn-ok.tab.gz">wnjpn-ok.tab.gz</a>（約 1 MB）</td><td rowspan="2">語義・類語辞書の元</td><td rowspan="2">日本語 WordNet 1.1（<a href="https://github.com/bond-lab/wnja/blob/master/LICENSE">ライセンス</a>）</td></tr>
       <tr><td><a href="https://github.com/bond-lab/wnja/releases/download/v1.1/wnjpn-def.tab.gz">wnjpn-def.tab.gz</a>（約 8 MB）</td></tr>
-      <tr><td><a href="https://www.newgeneralservicelist.com/s/NGSL_12_stats.csv">NGSL の表（.csv）</a>（約 60 KB）</td><td>英単語テスト（基礎・標準・発展）の元</td><td>NGSL 1.2（<a href="https://www.newgeneralservicelist.com/">配布元</a>、CC BY-SA 4.0）</td></tr>
     </table>
-    <p class="note">NGSL の表が画面に文字で表示されたときは、Ctrl+S（Mac は ⌘S）で保存してください。</p>
   </section>
 
   <section>
     <h2>2. ダウンロードしたファイルを入れる</h2>
     <div id="drop">
-      <p>5 つのファイルを、ここにドラッグしてください</p>
-      <p><input type="file" id="pick" multiple accept=".gz,.csv,.xml,.tab"></p>
+      <p>4 つのファイルを、ここにドラッグしてください</p>
+      <p><input type="file" id="pick" multiple accept=".gz,.xml,.tab"></p>
     </div>
     <ul id="checklist"></ul>
   </section>
@@ -75,7 +73,7 @@
     <h2>3. 辞書を作る</h2>
     <p><button id="build" disabled>辞書を作る</button></p>
     <progress id="progress" value="0" max="1" hidden></progress>
-    <p id="status" class="note">5 つのファイルがそろうと押せます。</p>
+    <p id="status" class="note">4 つのファイルがそろうと押せます。</p>
     <p id="error"></p>
     <div id="log"></div>
   </section>
@@ -85,7 +83,7 @@
     <ol>
       <li>microSD カード（32 GB 以下、FAT32）をパソコンに挿します。</li>
       <li>「SD カードに書き込む」を押し、カードの中の <code>dict</code> フォルダを選びます。<code>dict</code> フォルダが無いときは、選ぶ画面で「新しいフォルダ」を押して <code>dict</code> という名前で作り、それを選びます。「ファイルの編集を許可しますか」と聞かれたら許可します。</li>
-      <li>書き込みが終わったら、カードを Tab5 に挿して電源を入れ直します。辞書が 5 冊になり、テストの 2〜4 と 6〜9 が使えるようになります。</li>
+      <li>書き込みが終わったら、カードを Tab5 に挿して電源を入れ直します。内蔵の英和と合わせて、辞書が 5 冊になります。</li>
     </ol>
     <p><button id="write" disabled>SD カードに書き込む</button>　<button id="zip" class="sub" disabled>ZIP で保存する</button></p>
     <p id="writestatus" class="note"></p>
@@ -94,7 +92,7 @@
 
   <section>
     <h2>出典とライセンス</h2>
-    <p>このページは辞書のデータを配布していません。作った辞書とテストのデータには、<code>dict</code> フォルダの「出典とライセンス.txt」に書いてあるライセンスが付きます（JMdict・KANJIDIC2・NGSL は CC BY-SA 4.0、語義・類語辞書は日本語 WordNet と WordNet 3.0 の条件も）。人に渡すときは、このファイルも一緒に渡してください。</p>
+    <p>このページは辞書のデータを配布していません。作った辞書には、<code>dict</code> フォルダの「出典とライセンス.txt」に書いてあるライセンスが付きます（JMdict・KANJIDIC2 は CC BY-SA 4.0、語義・類語辞書は日本語 WordNet と WordNet 3.0 の条件も）。人に渡すときは、このファイルも一緒に渡してください。</p>
     <p class="note">This page uses the JMdict/EDICT and KANJIDIC dictionary files. These files are the property of the <a href="https://www.edrdg.org/">Electronic Dictionary Research and Development Group</a>, and are used in conformance with the Group's <a href="https://www.edrdg.org/edrdg/licence.html">licence</a>.</p>
     <p class="note">このページで動かしている部品: 変換ツール（<a href="https://github.com/bravelink-inc/tab5-pocket-dictionary">tab5-pocket-dictionary</a> の tools/、MIT）、<a href="https://pyodide.org/">Pyodide</a>（MPL-2.0）、pykakasi（GPL-3.0、<a href="https://codeberg.org/miurahr/pykakasi">ソース</a>）、jaconv（MIT）、Deprecated（MIT）、wrapt（BSD-2-Clause）。条文は <a href="licences/">licences</a> フォルダにあります。</p>
   </section>
@@ -106,16 +104,20 @@ const KINDS = [
   { kind: "kanjidic", label: "kanjidic2.xml.gz", re: /kanjidic2/i },
   { kind: "wnok",     label: "wnjpn-ok.tab.gz",  re: /wnjpn-ok/i },
   { kind: "wndef",    label: "wnjpn-def.tab.gz", re: /wnjpn-def/i },
-  { kind: "ngsl",     label: "NGSL の表（.csv）", re: /ngsl.*\.csv$/i },
 ];
 const chosen = {};
 let outputs = null;
 const $ = (id) => document.getElementById(id);
 
 function render() {
-  $("checklist").innerHTML = KINDS.map((k) => chosen[k.kind]
-    ? `<li class="ok">✓ ${k.label}（${chosen[k.kind].name}）</li>`
-    : `<li class="ng">□ ${k.label}</li>`).join("");
+  const items = KINDS.map((k) => {
+    const item = document.createElement("li");
+    const file = chosen[k.kind];
+    item.className = file ? "ok" : "ng";
+    item.textContent = file ? `✓ ${k.label}（${file.name}）` : `□ ${k.label}`;
+    return item;
+  });
+  $("checklist").replaceChildren(...items);
   const all = KINDS.every((k) => chosen[k.kind]);
   $("build").disabled = !all;
   if (all) $("status").textContent = "そろいました。「辞書を作る」を押してください。";
