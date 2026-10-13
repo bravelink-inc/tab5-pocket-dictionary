@@ -1,7 +1,7 @@
 """Host regression checks. Run: python3 -m unittest discover -s tests -v
 
-Uses the real PDC reader with memory/log shims, and the actual nextQuestion body
-with deterministic draws. No device, extra Python package or dictionary download.
+Uses the real PDC reader with memory/log shims.
+No device, extra Python package or dictionary download.
 """
 import gzip
 import os
@@ -79,50 +79,6 @@ class RequiredFixes(unittest.TestCase):
         length = struct.unpack_from("<I", bad, defs)[0]
         bad[defs + 4:defs + 4 + length] = b"x" * length
         self.check_image(bad, True, False)
-
-    def test_quiz_unique_answers_and_exhaustion(self):
-        ui = (ROOT / "firmware/main/ui.cpp").read_text()
-        body = ui.split("// [book:13-next-question]\n", 1)[1].split("// [/book:13-next-question]", 1)[0]
-        harness = r'''
-#include <algorithm>
-#include <cassert>
-#include <string>
-#include <vector>
-enum class QuizKind { Word, Kanji };
-struct Question { std::string word, def, options[4]; int correct = 0; };
-struct State { QuizKind kind = QuizKind::Word; bool jaToEn = false; Question q;
-    std::vector<std::string> asked; int answered = -1; } Z;
-std::vector<std::string> draws;
-size_t at = 0;
-bool nextKanjiQuestion() { return false; }
-unsigned rnd(unsigned) { return 0; }
-std::string firstSense(const std::string& s) { return s; }
-bool pickWord(std::string& w, std::string& d, const std::string&, bool = false) {
-    if (at == draws.size()) return false;
-    w = "word" + std::to_string(at); d = draws[at++]; return true;
-}
-'''
-        checks = r'''
-int main() {
-    for (bool reverse : {false, true}) {
-        Z = {}; Z.jaToEn = reverse;
-        draws = {"right", "one", "two", "three"}; at = 0;
-        assert(nextQuestion() && at == 4 && Z.asked.size() == 1);
-        for (int i = 0; i < 4; ++i) for (int j = 0; j < i; ++j)
-            assert(Z.q.options[i] != Z.q.options[j]);
-    }
-    Z = {}; draws.assign(11, "right"); at = 0;
-    assert(!nextQuestion() && Z.asked.empty());
-    Z = {}; draws.assign(10, "right");
-    draws.insert(draws.end(), {"one", "two", "three"}); at = 0;
-    assert(nextQuestion() && at == 13);
-    assert(Z.q.options[0] == "right" && Z.q.options[1] == "one");
-}
-'''
-        src, binary = self.dir / "quiz.cpp", self.dir / "quiz"
-        src.write_text(harness + body + checks)
-        subprocess.run(["c++", "-std=c++17", str(src), "-o", str(binary)], check=True)
-        subprocess.run([str(binary)], check=True)
 
     def test_kanji_uses_former_jlpt(self):
         # This fixture does not need the external romaji dependency.

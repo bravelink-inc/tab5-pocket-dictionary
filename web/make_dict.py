@@ -9,7 +9,7 @@ import gzip, io, os, runpy, sys, zipfile
 sys.path.insert(0, "/tools")
 SRC, TSV, OUT = "/work/src", "/work/tsv", "/work/dict"
 INPUTS = {"jmdict": "JMdict_e.gz", "kanjidic": "kanjidic2.xml.gz", "wnok": "wnjpn-ok.tab.gz",
-          "wndef": "wnjpn-def.tab.gz", "ngsl": "NGSL_12_stats.csv"}
+          "wndef": "wnjpn-def.tab.gz"}
 DICTS = [("JMdict 和英", "和英", "10_jmdict_waei", "jmdict_waei"),
          ("JMdict 英和（逆引き）", "英和J", "20_jmdict_eiwa", "jmdict_eiwa"),
          ("KANJIDIC2 漢字辞典", "漢字", "30_kanjidic2", "kanjidic2"),
@@ -52,7 +52,6 @@ STEPS = [
         "build_dict.py", "--title", t, "--tag", g, "--headword-sep", "|", "-o", f"{OUT}/{o}.pdc", f"{TSV}/{s}.tsv")))
     for title, tag, out, tsv in DICTS
 ] + [
-    ("テストのデータを作る", lambda: run("make_quiz_data.py", "--ngsl", src("ngsl"), "--kanjidic", src("kanjidic"), "-o", OUT)),
     ("出典とライセンスを書く", lambda: run("make_notices.py", "--jmdict", src("jmdict"), "--kanjidic", src("kanjidic"), "-o", OUT)),
 ]
 
@@ -66,7 +65,7 @@ def run_step(i):
 
 
 def outputs():
-    return sorted(os.listdir(OUT))
+    return sorted([out + ".pdc" for _, _, out, _ in DICTS] + ["出典とライセンス.txt"])
 
 
 def make_zip():

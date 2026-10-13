@@ -33,7 +33,7 @@ static bool validField(const std::string& s)
 static bool save(const std::vector<wordbook::Entry>& entries)
 {
     std::string blob;
-    for (const auto& e : entries) blob += e.word + '\t' + e.quizKey + '\n';
+    for (const auto& e : entries) blob += e.word + '\n';
     if (sdcard_mounted()) {
         if (!file_replace::recover(SD_PATH)) return fail("単語帳のSD復旧に失敗しました");
         const std::string temp = file_replace::temporary(SD_PATH);
@@ -58,22 +58,6 @@ static bool save(const std::vector<wordbook::Entry>& entries)
 }
 // [/book:13-wordbook-save]
 
-static std::string legacyKey(const std::string& word)
-{
-    // Old files contain display words only. Recover the first English spelling;
-    // Japanese display words are never used as English quiz keys.
-    std::string key = word.substr(0, word.find(','));
-    while (!key.empty() && key.back() == ' ') key.pop_back();
-    while (!key.empty() && key.front() == ' ') key.erase(key.begin());
-    bool letter = false;
-    for (char& c : key) {
-        if (c >= 'A' && c <= 'Z') c += 'a' - 'A';
-        if (c >= 'a' && c <= 'z') letter = true;
-        else if (c != ' ' && c != '-' && c != '\'' && (c < '0' || c > '9')) return "";
-    }
-    return letter ? key : "";
-}
-
 static bool parse(const std::string& blob)
 {
     std::vector<wordbook::Entry> entries;
@@ -83,8 +67,11 @@ static bool parse(const std::string& blob)
         std::string line = blob.substr(pos, nl == std::string::npos ? std::string::npos : nl - pos);
         if (!line.empty() && line.back() == '\r') line.pop_back();
         size_t tab = line.find('\t');
-        wordbook::Entry e{line.substr(0, tab), tab == std::string::npos ? legacyKey(line) : line.substr(tab + 1)};
-        if (!validField(e.word) || !validField(e.quizKey)) return fail("単語帳の形式が不正です");
+        // Accept the old optional second column without retaining unused metadata.
+        wordbook::Entry e{line.substr(0, tab)};
+        if (!validField(e.word) ||
+            (tab != std::string::npos && !validField(line.substr(tab + 1))))
+            return fail("単語帳の形式が不正です");
         if (!e.word.empty() && std::none_of(entries.begin(), entries.end(), [&](const auto& old) { return old.word == e.word; }))
             entries.push_back(std::move(e));
         if (entries.size() > MAX_WORDS) return fail("単語帳は最大1000件です");
@@ -138,20 +125,16 @@ bool wordbook::contains(const std::string& w)
 {
     return std::any_of(s_entries.begin(), s_entries.end(), [&](const auto& e) { return e.word == w; });
 }
-bool wordbook::containsQuizKey(const std::string& k)
-{
-    return !k.empty() && std::any_of(s_entries.begin(), s_entries.end(), [&](const auto& e) { return e.quizKey == k; });
-}
-bool wordbook::add(const std::string& w, const std::string& key)
+bool wordbook::add(const std::string& w)
 {
     if (!s_loadOk) return fail("単語帳を読み込めていないため保存できません");
     s_error.clear();
-    if (w.empty() || contains(w) || containsQuizKey(key)) return false;
-    if (!validField(w) || !validField(key)) return fail("単語帳の語が長すぎるか形式が不正です");
+    if (w.empty() || contains(w)) return false;
+    if (!validField(w)) return fail("単語帳の語が長すぎるか形式が不正です");
     auto next = s_entries;
-    next.push_back({w, key});
+    next.push_back({w});
     size_t bytes = 0;
-    for (const auto& e : next) bytes += e.word.size() + e.quizKey.size() + 2;
+    for (const auto& e : next) bytes += e.word.size() + 1;
     if (next.size() > MAX_WORDS || bytes > SD_MAX) return fail("単語帳は最大1000件・64KiBです");
     if (!save(next)) return false;
     s_entries = std::move(next);
@@ -169,16 +152,10 @@ bool wordbook::remove(const std::string& w)
     s_entries = std::move(next);
     return true;
 }
-bool wordbook::toggle(const std::string& w, const std::string& key)
+bool wordbook::toggle(const std::string& w)
 {
-    auto it = std::find_if(s_entries.begin(), s_entries.end(), [&](const auto& e) {
-        return e.word == w || (!key.empty() && e.quizKey == key);
-    });
-    if (it != s_entries.end()) {
-        const std::string saved = it->word;
-        return !remove(saved);
-    }
-    return add(w, key);
+    if (contains(w)) return !remove(w);
+    return add(w);
 }
 const std::vector<wordbook::Entry>& wordbook::entries() { return s_entries; }
 const std::string& wordbook::lastError() { return s_error; }
