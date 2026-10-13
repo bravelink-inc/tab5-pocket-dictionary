@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """make_notices.py - write the sources and licences of the SD-card data next to it.
 
-The SD dictionaries and quiz lists are made by the reader from the official data, so this file
+The SD dictionaries are made by the reader from the official data, so this file
 is what travels with them: who made the data, its licence (with the URL), what was changed,
 and the full text of the Japanese WordNet and WordNet 3.0 licences.
 
@@ -46,7 +46,7 @@ def main():
     text = f"""Tab5 電子辞書　SD カードのデータの出典とライセンス
 （{today} に、使う人が公式のデータから作成。作成ツール: https://github.com/bravelink-inc/tab5-pocket-dictionary の tools/、MIT ライセンス）
 
-このフォルダの辞書（.pdc）とテストのデータ（.txt）は、下の元データを変換したものです。
+このフォルダの辞書（.pdc）は、下の元データを変換したものです。
 人に渡すときは、このファイルも一緒に渡し、それぞれのライセンスの条件を守ってください。
 どのデータも無保証です。
 
@@ -68,7 +68,7 @@ JMdict の説明: https://www.edrdg.org/wiki/index.php/JMdict-EDICT_Dictionary_P
 この 2 つの .pdc ファイルも CC BY-SA 4.0 です。
 
 
-■ 30_kanjidic2.pdc（KANJIDIC2 漢字辞典）、kanji_quiz.txt（漢字の読みテスト）
+■ 30_kanjidic2.pdc（KANJIDIC2 漢字辞典）
 
 元データ: KANJIDIC2（kanjidic2.xml.gz、{kd} 作成）
 These files are the property of the Electronic Dictionary Research and Development Group, and are
@@ -80,8 +80,8 @@ KANJIDIC の説明: https://www.edrdg.org/wiki/index.php/KANJIDIC_Project
 使った項目: 音読み、訓読み、英語の意味、名乗り、画数、部首番号、学年、JLPT、頻度順位
 （SKIP コードなど、個別の条件が付いた項目は使っていない）
 変更点: 音読み・訓読み・英語の意味をローマ字や小文字にした検索キーを足し、語義を 1 つの文字列にまとめ、
-頻度順に並べ替えて PDC1 形式にした。kanji_quiz.txt は、学年のある常用漢字だけを選び、読みだけを残した。
-この 2 つのファイルも CC BY-SA 4.0 です。
+頻度順に並べ替えて PDC1 形式にした。
+このファイルも CC BY-SA 4.0 です。
 
 
 ■ 40_wnjpn_kokugo.pdc（日本語 WordNet（語義・類語））
@@ -98,15 +98,6 @@ JMdict のデータを含むので、このファイルは CC BY-SA 4.0 で、�
 
 --- WordNet 3.0 の条文 ---
 {read(a.wordnet_license)}
-
-
-■ ngsl_levels.txt（英単語テストの基礎・標準・発展）
-
-元データ: New General Service List 1.2（Browne, C., Culligan, B., and Phillips, J.）
-https://www.newgeneralservicelist.com/
-ライセンス: CC BY-SA 4.0　{CC}
-変更点: 見出し語を小文字にし、頻度順位を 3 段階に分け、本体の英和辞書（EJDict-hand）に無い語を除いた。
-このファイルも CC BY-SA 4.0 です。
 """
     os.makedirs(a.outdir, exist_ok=True)
     out = os.path.join(a.outdir, NAME)

@@ -19,9 +19,8 @@ async function init() {
   py.setStderr({ batched: out });
   await py.loadPackage(list.pyodidePackages, { messageCallback: () => {} });
   await py.loadPackage(list.wheels.map((w) => base + "wheels/" + w), { messageCallback: () => {} });
-  for (const dir of ["/tools", "/third_party/ejdict/src", "/third_party/wnja"]) py.FS.mkdirTree(dir);
+  for (const dir of ["/tools", "/third_party/wnja"]) py.FS.mkdirTree(dir);
   for (const f of list.tools) py.FS.writeFile("/tools/" + f, await bytes("tools/" + f));
-  for (const f of list.ejdict) py.FS.writeFile("/third_party/ejdict/src/" + f, await bytes("ejdict/" + f));
   for (const f of list.licences) py.FS.writeFile("/third_party/wnja/" + f, await bytes("licences/" + f));
   py.FS.writeFile("/tools/make_dict.py", await bytes("make_dict.py"));
   py.runPython("import sys; sys.path.insert(0, '/tools'); import make_dict");
